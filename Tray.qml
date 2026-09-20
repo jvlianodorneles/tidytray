@@ -577,7 +577,7 @@ BarWidget {
           }
 
           Text {
-            text: root.submenuDepth > 0 ? root.submenuStack[root.submenuDepth - 1].title : "Voltar"
+            text: root.submenuDepth > 0 ? root.submenuStack[root.submenuDepth - 1].title : "Back"
             textFormat: Text.PlainText
             renderType: Text.NativeRendering
             font.pixelSize: Style.fontSize.small

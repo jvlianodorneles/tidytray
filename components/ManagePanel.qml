@@ -94,7 +94,7 @@ Item {
           color: manageRoot.activeTab === "items" ? Color.accent : manageRoot.surfaceAlt
           Text {
             anchors.centerIn: parent
-            text: "Itens"
+            text: "Items"
             textFormat: Text.PlainText
             renderType: Text.NativeRendering
             font.pixelSize: Style.fontSize.small
@@ -114,7 +114,7 @@ Item {
           color: manageRoot.activeTab === "config" ? Color.accent : manageRoot.surfaceAlt
           Text {
             anchors.centerIn: parent
-            text: "Ajustes"
+            text: "Settings"
             textFormat: Text.PlainText
             renderType: Text.NativeRendering
             font.pixelSize: Style.fontSize.small
@@ -205,7 +205,7 @@ Item {
             onTextChanged: manageRoot.searchQuery = text
 
             Text {
-              text: "Buscar widgets ou ícones..."
+              text: "Search widgets or icons..."
               textFormat: Text.PlainText
               renderType: Text.NativeRendering
               color: manageRoot.mutedColor
@@ -231,7 +231,7 @@ Item {
 
           // 1. Hosted Widgets Section
           Text {
-            text: "WIDGETS DA BARRA CAPTURADOS (" + manageRoot.hostedWidgets.length + ")"
+            text: "CAPTURED BAR WIDGETS (" + manageRoot.hostedWidgets.length + ")"
             textFormat: Text.PlainText
             renderType: Text.NativeRendering
             font.pixelSize: Style.fontSize.tiny
@@ -364,7 +364,7 @@ Item {
 
           // 2. SNI Items Section
           Text {
-            text: "ÍCONES DE BANDEJA (SNI) (" + manageRoot.sniItems.length + ")"
+            text: "SYSTEM TRAY ICONS (SNI) (" + manageRoot.sniItems.length + ")"
             textFormat: Text.PlainText
             renderType: Text.NativeRendering
             font.pixelSize: Style.fontSize.tiny
@@ -483,7 +483,7 @@ Item {
 
       // 1. Display Mode
       Text {
-        text: "MODO DE EXIBIÇÃO"
+        text: "DISPLAY MODE"
         textFormat: Text.PlainText
         renderType: Text.NativeRendering
         font.pixelSize: Style.fontSize.tiny
@@ -496,7 +496,7 @@ Item {
         spacing: 4
 
         readonly property var modes: ["inline", "dropdown", "drawer", "flat"]
-        readonly property var modeLabels: ["Inline", "Dropdown", "Gaveta", "Flat"]
+        readonly property var modeLabels: ["Inline", "Dropdown", "Drawer", "Flat"]
 
         Repeater {
           model: 4
@@ -534,7 +534,7 @@ Item {
 
       // 2. Trigger Mode
       Text {
-        text: "GATILHO DE ABERTURA"
+        text: "OPEN TRIGGER"
         textFormat: Text.PlainText
         renderType: Text.NativeRendering
         font.pixelSize: Style.fontSize.tiny
@@ -555,7 +555,7 @@ Item {
 
           Text {
             anchors.centerIn: parent
-            text: "Ao Clicar"
+            text: "On Click"
             textFormat: Text.PlainText
             renderType: Text.NativeRendering
             font.pixelSize: Style.fontSize.small
@@ -582,7 +582,7 @@ Item {
 
           Text {
             anchors.centerIn: parent
-            text: "Ao Passar Cursor (Hover)"
+            text: "On Hover"
             textFormat: Text.PlainText
             renderType: Text.NativeRendering
             font.pixelSize: Style.fontSize.small
@@ -603,7 +603,7 @@ Item {
 
       // 3. Indicator Icon
       Text {
-        text: "ÍCONE DO INDICADOR"
+        text: "INDICATOR ICON"
         textFormat: Text.PlainText
         renderType: Text.NativeRendering
         font.pixelSize: Style.fontSize.tiny
@@ -616,7 +616,7 @@ Item {
         spacing: 4
 
         readonly property var icons: ["chevron", "dot", "dots", "plus", "none"]
-        readonly property var iconLabels: ["Chevron", "Ponto", "Pontos", "Mais", "Nenhum"]
+        readonly property var iconLabels: ["Chevron", "Dot", "Dots", "Plus", "None"]
 
         Repeater {
           model: 5
@@ -689,7 +689,7 @@ Item {
         }
 
         Text {
-          text: "Deduplicar apps com widget nativo (ex: Dropbox)"
+          text: "Deduplicate apps with native widget (e.g. Dropbox)"
           textFormat: Text.PlainText
           renderType: Text.NativeRendering
           font.pixelSize: Style.fontSize.small

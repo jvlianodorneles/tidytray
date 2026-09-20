@@ -67,7 +67,7 @@ Item {
             onTextChanged: drawerGridRoot.searchQuery = text
 
             Text {
-              text: "Filtrar..."
+              text: "Filter..."
               textFormat: Text.PlainText
               renderType: Text.NativeRendering
               color: Color.bar.buttonForeground

@@ -6,7 +6,7 @@
   "author": "Juliano Dorneles",
   "license": "MIT",
   "homepage": "https://github.com/jvlianodorneles/tidytray",
-  "description": "O organizador unificado definitivo para a barra do Omarchy: gerencie itens da bandeja do sistema e widgets da barra com 4 modos de exibição, drag-and-drop e controle total por teclado.",
+  "description": "The ultimate unified tray and bar organizer for Omarchy: manage system tray items and bar widgets with 4 display modes, drag-and-drop, and full keyboard navigation.",
   "kinds": [
     "bar-widget"
   ],
@@ -18,7 +18,7 @@
   },
   "barWidget": {
     "displayName": "TidyTray",
-    "description": "Bandeja do sistema unificada e organizador de widgets da barra",
+    "description": "Unified system tray and bar widget organizer",
     "category": "Status",
     "aliases": ["tray", "supertray", "tidytray", "system tray"],
     "allowMultiple": false,
@@ -38,53 +38,53 @@
       {
         "key": "displayMode",
         "type": "enum",
-        "label": "Modo de Exibição",
+        "label": "Display Mode",
         "options": ["inline", "dropdown", "drawer", "flat"],
         "defaultValue": "inline",
-        "description": "inline: desliza na própria barra; dropdown: faixa flutuante abaixo da barra; drawer: painel card em grade/lista; flat: tudo exposto diretamente na barra"
+        "description": "inline: slides out on the bar; dropdown: floating strip beneath the bar; drawer: popout card in grid/list view; flat: all items shown directly on the bar"
       },
       {
         "key": "trigger",
         "type": "enum",
-        "label": "Gatilho de Abertura",
+        "label": "Open Trigger",
         "options": ["click", "hover"],
         "defaultValue": "click",
-        "description": "Abrir ao clicar ou ao passar o cursor do mouse"
+        "description": "Reveal drawer on mouse click or pointer hover"
       },
       {
         "key": "indicatorIcon",
         "type": "enum",
-        "label": "Ícone do Indicador",
+        "label": "Indicator Icon",
         "options": ["chevron", "dot", "dots", "plus", "none"],
         "defaultValue": "chevron",
-        "description": "Símbolo visual do botão de expansão"
+        "description": "Visual indicator glyph for drawer toggle"
       },
       {
         "key": "rehideSeconds",
         "type": "integer",
-        "label": "Auto-ocultar após (segundos, 0 = desativado)",
+        "label": "Auto-hide timeout (seconds, 0 = disabled)",
         "min": 0,
         "max": 600,
         "step": 1,
         "defaultValue": 0,
-        "description": "Tempo antes da gaveta recolher automaticamente quando inativa"
+        "description": "Seconds before an expanded section automatically collapses when inactive"
       },
       {
         "key": "revealDuration",
         "type": "integer",
-        "label": "Duração da Animação (ms)",
+        "label": "Animation Duration (ms)",
         "min": 0,
         "max": 600,
         "step": 10,
         "defaultValue": 200,
-        "description": "Tempo em milissegundos para a transição de revelação"
+        "description": "Transition speed in milliseconds for slide-out animations"
       },
       {
         "key": "deduplicateKnown",
         "type": "boolean",
-        "label": "Deduplicação Inteligente",
+        "label": "Smart Deduplication",
         "defaultValue": true,
-        "description": "Oculta ícones de bandeja redundantes quando o widget correspondente já estiver ativo (ex: Dropbox) e suprime itens fantasmas sem utilidade"
+        "description": "Suppresses redundant tray icons when corresponding bar widgets are loaded (e.g. Dropbox) and filters ghost unclickable items"
       }
     ]
   }
