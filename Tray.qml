@@ -166,6 +166,64 @@ BarWidget {
   }
 
   // ---------------------------------------------------------------------------
+  // Host Bar Adoption (Access to real bar for drag-and-drop & full shell config)
+  // ---------------------------------------------------------------------------
+  property var hostBar: root.bar
+
+  function isRealHostBar(b) {
+    return b !== null && b !== undefined && typeof b === "object" && "barDragSource" in b && "barWidgetRegistry" in b
+  }
+
+  function findHostBar(item) {
+    if (!item) return null
+    if (isRealHostBar(item)) return item
+    if ("bar" in item && isRealHostBar(item.bar)) return item.bar
+    var kids = item.children
+    if (!kids) return null
+    for (var i = 0; i < kids.length; i++) {
+      var found = findHostBar(kids[i])
+      if (found) return found
+    }
+    return null
+  }
+
+  function resolveHostBar() {
+    if (isRealHostBar(hostBar)) return
+    var p = root.parent
+    while (p) {
+      if (isRealHostBar(p)) {
+        hostBar = p
+        return
+      }
+      p = p.parent
+    }
+    var bw = (root.bar && root.bar.barWindow) ? root.bar.barWindow : null
+    if (!bw && root.QsWindow) bw = root.QsWindow.window
+    if (bw && bw.contentItem) {
+      var found = findHostBar(bw.contentItem)
+      if (found) {
+        hostBar = found
+        return
+      }
+    }
+  }
+
+  Component.onCompleted: resolveHostBar()
+  onParentChanged: resolveHostBar()
+  onBarChanged: resolveHostBar()
+
+  property int adoptAttempts: 0
+  Timer {
+    interval: 200
+    repeat: true
+    running: (!root.hostBar || !("barDragSource" in root.hostBar)) && root.adoptAttempts < 40
+    onTriggered: {
+      root.adoptAttempts += 1
+      root.resolveHostBar()
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // Mutate Config Helper & Atomic Script Fallback
   // ---------------------------------------------------------------------------
   Component {
@@ -173,6 +231,11 @@ BarWidget {
     Process {
       id: proc
       property var onFinished: null
+      stderr: StdioCollector {
+        onStreamFinished: {
+          if (text && text.trim()) console.warn("[tidytray] config-helper:", text.trim())
+        }
+      }
       onExited: function(exitCode) {
         if (typeof onFinished === "function") {
           onFinished(exitCode === 0)
@@ -184,7 +247,7 @@ BarWidget {
 
   function runHelper(action, args, callback) {
     var scriptPath = Qt.resolvedUrl("scripts/config-helper.py").toString().replace(/^file:\/\//, "")
-    var fullCmd = [scriptPath, action].concat(args || [])
+    var fullCmd = ["python3", scriptPath, action].concat(args || [])
     var proc = helperProcessComp.createObject(root, {
       command: fullCmd,
       onFinished: callback
@@ -194,64 +257,72 @@ BarWidget {
     }
   }
 
+  function getRealShell() {
+    if (root.hostBar && root.hostBar.shell && !("pluginId" in root.hostBar.shell) && typeof root.hostBar.shell.mutateShellConfig === "function") {
+      return root.hostBar.shell
+    }
+    return null
+  }
+
   function captureWidget(sourceId) {
     if (!sourceId) return
-    var ok = false
-    if (root.bar && root.bar.shell && typeof root.bar.shell.mutateShellConfig === "function") {
+    var shellObj = getRealShell()
+    var handled = false
+    if (shellObj) {
       try {
-        root.bar.shell.mutateShellConfig(function(config) {
-          TrayModel.captureIntoTray(config, root.moduleName, sourceId)
+        shellObj.mutateShellConfig(function(config) {
+          handled = TrayModel.captureIntoTray(config, root.moduleName, sourceId)
         })
-        ok = true
       } catch (e) {
-        console.warn("[tidytray] mutateShellConfig capture failed:", e)
+        handled = false
       }
     }
-    if (!ok) {
+    if (!handled) {
       runHelper("capture", [root.moduleName, sourceId])
     }
   }
 
   function releaseWidget(widgetId) {
     if (!widgetId) return
-    var ok = false
-    if (root.bar && root.bar.shell && typeof root.bar.shell.mutateShellConfig === "function") {
+    var shellObj = getRealShell()
+    var handled = false
+    if (shellObj) {
       try {
-        root.bar.shell.mutateShellConfig(function(config) {
-          TrayModel.releaseFromTray(config, root.moduleName, widgetId)
+        shellObj.mutateShellConfig(function(config) {
+          handled = TrayModel.releaseFromTray(config, root.moduleName, widgetId)
         })
-        ok = true
       } catch (e) {
-        console.warn("[tidytray] mutateShellConfig release failed:", e)
+        handled = false
       }
     }
-    if (!ok) {
+    if (!handled) {
       runHelper("release", [root.moduleName, widgetId])
     }
   }
 
   function reorderHostedWidget(fromIndex, toIndex) {
-    var ok = false
-    if (root.bar && root.bar.shell && typeof root.bar.shell.mutateShellConfig === "function") {
+    var shellObj = getRealShell()
+    var handled = false
+    if (shellObj) {
       try {
-        root.bar.shell.mutateShellConfig(function(config) {
-          TrayModel.reorderTrayWidgets(config, root.moduleName, fromIndex, toIndex)
+        shellObj.mutateShellConfig(function(config) {
+          handled = TrayModel.reorderTrayWidgets(config, root.moduleName, fromIndex, toIndex)
         })
-        ok = true
       } catch (e) {
-        console.warn("[tidytray] mutateShellConfig reorder failed:", e)
+        handled = false
       }
     }
-    if (!ok) {
+    if (!handled) {
       runHelper("reorder", [root.moduleName, String(fromIndex), String(toIndex)])
     }
   }
 
   function saveSettings(newSettings) {
-    var ok = false
-    if (root.bar && root.bar.shell && typeof root.bar.shell.mutateShellConfig === "function") {
+    var shellObj = getRealShell()
+    var handled = false
+    if (shellObj) {
       try {
-        root.bar.shell.mutateShellConfig(function(config) {
+        shellObj.mutateShellConfig(function(config) {
           var found = TrayModel.findLayoutEntry(config.bar.layout, root.moduleName)
           if (found && found.entry) {
             if (typeof found.entry === "string") {
@@ -261,41 +332,41 @@ BarWidget {
             for (var key in newSettings) {
               found.entry[key] = newSettings[key]
             }
+            handled = true
           }
         })
-        ok = true
       } catch (e) {
-        console.warn("[tidytray] mutateShellConfig saveSettings failed:", e)
+        handled = false
       }
     }
-    if (!ok) {
+    if (!handled) {
       runHelper("save-settings", [root.moduleName, JSON.stringify(newSettings)])
     }
   }
 
   // ---------------------------------------------------------------------------
-  // Drag & Drop Handling (Native Omarchy Bar Drag)
+  // Drag & Drop Handling (Tracking Host Bar Drag)
   // ---------------------------------------------------------------------------
   property bool caretActive: false
   property bool dragOver: false
   property string currentDraggedId: ""
 
-  readonly property bool isBarDragging: root.bar && "barDragSource" in root.bar && root.bar.barDragSource !== null
+  readonly property bool isBarDragging: root.hostBar && "barDragSource" in root.hostBar && root.hostBar.barDragSource !== null
   readonly property string draggedModuleId: {
     if (!isBarDragging) return ""
-    var src = root.bar.barDragSource
+    var src = root.hostBar.barDragSource
     var mId = src ? String(src.moduleName || "") : ""
     return (mId && mId !== root.moduleName) ? mId : ""
   }
 
   function checkDragHit() {
-    if (!root.bar || !root.bar.barDragSource || !root.currentDraggedId) {
+    if (!root.hostBar || !root.hostBar.barDragSource || !root.currentDraggedId) {
       if (dragOver) dragOver = false
       if (caretActive) caretActive = false
       return
     }
-    var sx = root.bar.barDragSceneX
-    var sy = root.bar.barDragSceneY
+    var sx = root.hostBar.barDragSceneX
+    var sy = root.hostBar.barDragSceneY
     var targetItem = (indicatorBtn && indicatorBtn.visible) ? indicatorBtn : root
     var origin = { x: 0, y: 0 }
     try {
@@ -303,15 +374,15 @@ BarWidget {
     } catch (e) {
       return
     }
-    var pad = 6
+    var pad = 10
     var inside = (sx >= origin.x - pad && sx <= origin.x + targetItem.width + pad &&
                   sy >= origin.y - pad && sy <= origin.y + targetItem.height + pad)
     if (inside) {
       dragOver = true
       caretActive = true
-      if (root.bar) {
-        root.bar.barDragTarget = null
-        root.bar.barDragTargetGeometry = null
+      if (root.hostBar) {
+        root.hostBar.barDragTarget = null
+        root.hostBar.barDragTargetGeometry = null
       }
     } else {
       dragOver = false
@@ -320,13 +391,13 @@ BarWidget {
   }
 
   Connections {
-    target: root.bar
+    target: root.hostBar
     ignoreUnknownSignals: true
 
     function onBarDragSceneXChanged() { root.checkDragHit() }
     function onBarDragSceneYChanged() { root.checkDragHit() }
     function onBarDragSourceChanged() {
-      var src = root.bar ? root.bar.barDragSource : null
+      var src = root.hostBar ? root.hostBar.barDragSource : null
       if (src) {
         var mId = String(src.moduleName || "")
         if (mId && mId !== root.moduleName) {

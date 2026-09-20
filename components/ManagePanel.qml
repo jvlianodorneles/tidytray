@@ -270,195 +270,227 @@ Item {
           }
 
             Repeater {
-            model: manageRoot.hostedWidgets
-            delegate: Rectangle {
-              id: widgetRowDelegate
-              required property var modelData
-              required property int index
-              readonly property string wId: TrayModel.wrapperId(modelData)
-              readonly property bool isPinned: manageRoot.pinnedIds.indexOf(wId) !== -1
-              readonly property bool isHidden: manageRoot.hiddenIds.indexOf(wId) !== -1
-              readonly property bool matchesSearch: !manageRoot.searchQuery ||
-                wId.toLowerCase().indexOf(manageRoot.searchQuery.toLowerCase()) !== -1
+              model: manageRoot.hostedWidgets
+              delegate: Item {
+                id: widgetRowWrapper
+                required property var modelData
+                required property int index
+                readonly property string wId: TrayModel.wrapperId(modelData)
+                readonly property bool isPinned: manageRoot.pinnedIds.indexOf(wId) !== -1
+                readonly property bool isHidden: manageRoot.hiddenIds.indexOf(wId) !== -1
+                readonly property bool matchesSearch: !manageRoot.searchQuery ||
+                  wId.toLowerCase().indexOf(manageRoot.searchQuery.toLowerCase()) !== -1
 
-              width: itemsListCol.width
-              height: 36
-              radius: Style.cornerRadius
-              color: manageRoot.surfaceAlt
-              visible: matchesSearch
+                width: itemsListCol.width
+                height: matchesSearch ? 36 : 0
+                visible: matchesSearch
+                z: rowDragArea.drag.active ? 99 : 1
 
-              Item {
-                anchors.fill: parent
-                anchors.leftMargin: 8
-                anchors.rightMargin: 8
+                Rectangle {
+                  id: widgetRowDelegate
+                  width: parent.width
+                  height: 36
+                  radius: Style.cornerRadius
+                  color: rowDragArea.drag.active ? Color.accent : manageRoot.surfaceAlt
+                  opacity: rowDragArea.drag.active ? 0.85 : 1.0
 
-                Row {
-                  anchors.left: parent.left
-                  anchors.right: widgetActionsRow.left
-                  anchors.rightMargin: 8
-                  anchors.verticalCenter: parent.verticalCenter
-                  spacing: 8
+                  Item {
+                    anchors.fill: parent
+                    anchors.leftMargin: 8
+                    anchors.rightMargin: 8
 
-                  Text {
-                    text: "\uf009" // nf-fa-th_large
-                    textFormat: Text.PlainText
-                    renderType: Text.NativeRendering
-                    font.family: Style.font.family
-                    font.pixelSize: Style.font.bodySmall
-                    color: Color.accent
-                    anchors.verticalCenter: parent.verticalCenter
-                  }
+                    Row {
+                      anchors.left: parent.left
+                      anchors.right: widgetActionsRow.left
+                      anchors.rightMargin: 8
+                      anchors.verticalCenter: parent.verticalCenter
+                      spacing: 8
 
-                  Text {
-                    text: TrayModel.friendlyDisplayName(widgetRowDelegate.wId)
-                    textFormat: Text.PlainText
-                    renderType: Text.NativeRendering
-                    font.family: Style.font.family
-                    font.pixelSize: Style.font.bodySmall
-                    color: Color.foreground
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: parent.width - 30
-                    elide: Text.ElideRight
-                  }
-                }
+                      // Drag handle icon (bars)
+                      Text {
+                        text: "\uf0c9" // nf-fa-bars
+                        textFormat: Text.PlainText
+                        renderType: Text.NativeRendering
+                        font.family: Style.font.family
+                        font.pixelSize: Style.font.bodySmall
+                        color: rowDragArea.drag.active ? Color.background : Color.accent
+                        anchors.verticalCenter: parent.verticalCenter
+                      }
 
-                // Actions: Move Up / Move Down / Pin / Hide / Eject
-                Row {
-                  id: widgetActionsRow
-                  anchors.right: parent.right
-                  anchors.verticalCenter: parent.verticalCenter
-                  spacing: 4
-
-                  // Move Up
-                  Rectangle {
-                    width: 24
-                    height: 24
-                    radius: 4
-                    color: "transparent"
-                    border.color: widgetRowDelegate.index > 0 ? manageRoot.mutedColor : "transparent"
-                    border.width: widgetRowDelegate.index > 0 ? 1 : 0
-                    visible: widgetRowDelegate.index > 0
-
-                    Text {
-                      anchors.centerIn: parent
-                      text: "\uf077" // chevron-up
-                      textFormat: Text.PlainText
-                      renderType: Text.NativeRendering
-                      font.family: Style.font.family
-                      font.pixelSize: Style.font.caption
-                      color: manageRoot.mutedColor
+                      Text {
+                        text: TrayModel.friendlyDisplayName(widgetRowWrapper.wId)
+                        textFormat: Text.PlainText
+                        renderType: Text.NativeRendering
+                        font.family: Style.font.family
+                        font.pixelSize: Style.font.bodySmall
+                        color: rowDragArea.drag.active ? Color.background : Color.foreground
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: parent.width - 30
+                        elide: Text.ElideRight
+                      }
                     }
+
+                    // Drag handle MouseArea covering the drag handle & text area
                     MouseArea {
-                      anchors.fill: parent
-                      cursorShape: Qt.PointingHandCursor
-                      onClicked: manageRoot.reorderWidget(widgetRowDelegate.index, widgetRowDelegate.index - 1)
-                    }
-                  }
+                      id: rowDragArea
+                      anchors.left: parent.left
+                      anchors.top: parent.top
+                      anchors.bottom: parent.bottom
+                      anchors.right: widgetActionsRow.left
+                      cursorShape: Qt.SizeVerCursor
+                      drag.target: widgetRowDelegate
+                      drag.axis: Drag.YAxis
 
-                  // Move Down
-                  Rectangle {
-                    width: 24
-                    height: 24
-                    radius: 4
-                    color: "transparent"
-                    border.color: widgetRowDelegate.index < manageRoot.hostedWidgets.length - 1 ? manageRoot.mutedColor : "transparent"
-                    border.width: widgetRowDelegate.index < manageRoot.hostedWidgets.length - 1 ? 1 : 0
-                    visible: widgetRowDelegate.index < manageRoot.hostedWidgets.length - 1
-
-                    Text {
-                      anchors.centerIn: parent
-                      text: "\uf078" // chevron-down
-                      textFormat: Text.PlainText
-                      renderType: Text.NativeRendering
-                      font.family: Style.font.family
-                      font.pixelSize: Style.font.caption
-                      color: manageRoot.mutedColor
+                      onReleased: {
+                        var dy = widgetRowDelegate.y
+                        widgetRowDelegate.y = 0
+                        var step = 42
+                        var movedSlots = Math.round(dy / step)
+                        var targetIdx = Math.max(0, Math.min(manageRoot.hostedWidgets.length - 1, widgetRowWrapper.index + movedSlots))
+                        if (targetIdx !== widgetRowWrapper.index) {
+                          manageRoot.reorderWidget(widgetRowWrapper.index, targetIdx)
+                        }
+                      }
                     }
-                    MouseArea {
-                      anchors.fill: parent
-                      cursorShape: Qt.PointingHandCursor
-                      onClicked: manageRoot.reorderWidget(widgetRowDelegate.index, widgetRowDelegate.index + 1)
-                    }
-                  }
 
-                  // Pin toggle
-                  Rectangle {
-                    width: 24
-                    height: 24
-                    radius: 4
-                    color: widgetRowDelegate.isPinned ? Color.accent : "transparent"
-                    border.color: widgetRowDelegate.isPinned ? Color.accent : manageRoot.mutedColor
-                    border.width: widgetRowDelegate.isPinned ? 0 : 1
+                    // Actions: Move Up / Move Down / Pin / Hide / Eject
+                    Row {
+                      id: widgetActionsRow
+                      anchors.right: parent.right
+                      anchors.verticalCenter: parent.verticalCenter
+                      spacing: 4
 
-                    Text {
-                      anchors.centerIn: parent
-                      text: "\uf08d" // nf-fa-thumb_tack
-                      textFormat: Text.PlainText
-                      renderType: Text.NativeRendering
-                      font.family: Style.font.family
-                      font.pixelSize: Style.font.caption
-                      color: widgetRowDelegate.isPinned ? Color.background : manageRoot.mutedColor
-                    }
-                    MouseArea {
-                      anchors.fill: parent
-                      cursorShape: Qt.PointingHandCursor
-                      onClicked: manageRoot.togglePinnedWidget(widgetRowDelegate.wId)
-                    }
-                  }
+                      // Move Up
+                      Rectangle {
+                        width: 24
+                        height: 24
+                        radius: 4
+                        color: "transparent"
+                        border.color: widgetRowWrapper.index > 0 ? manageRoot.mutedColor : "transparent"
+                        border.width: widgetRowWrapper.index > 0 ? 1 : 0
+                        visible: widgetRowWrapper.index > 0
 
-                  // Hide toggle
-                  Rectangle {
-                    width: 24
-                    height: 24
-                    radius: 4
-                    color: widgetRowDelegate.isHidden ? Color.urgent : "transparent"
-                    border.color: widgetRowDelegate.isHidden ? Color.urgent : manageRoot.mutedColor
-                    border.width: widgetRowDelegate.isHidden ? 0 : 1
+                        Text {
+                          anchors.centerIn: parent
+                          text: "\uf077" // chevron-up
+                          textFormat: Text.PlainText
+                          renderType: Text.NativeRendering
+                          font.family: Style.font.family
+                          font.pixelSize: Style.font.caption
+                          color: manageRoot.mutedColor
+                        }
+                        MouseArea {
+                          anchors.fill: parent
+                          cursorShape: Qt.PointingHandCursor
+                          onClicked: manageRoot.reorderWidget(widgetRowWrapper.index, widgetRowWrapper.index - 1)
+                        }
+                      }
 
-                    Text {
-                      anchors.centerIn: parent
-                      text: widgetRowDelegate.isHidden ? "\uf070" : "\uf06e" // eye-slash / eye
-                      textFormat: Text.PlainText
-                      renderType: Text.NativeRendering
-                      font.family: Style.font.family
-                      font.pixelSize: Style.font.caption
-                      color: widgetRowDelegate.isHidden ? Color.background : manageRoot.mutedColor
-                    }
-                    MouseArea {
-                      anchors.fill: parent
-                      cursorShape: Qt.PointingHandCursor
-                      onClicked: manageRoot.toggleHiddenWidget(widgetRowDelegate.wId)
-                    }
-                  }
+                      // Move Down
+                      Rectangle {
+                        width: 24
+                        height: 24
+                        radius: 4
+                        color: "transparent"
+                        border.color: widgetRowWrapper.index < manageRoot.hostedWidgets.length - 1 ? manageRoot.mutedColor : "transparent"
+                        border.width: widgetRowWrapper.index < manageRoot.hostedWidgets.length - 1 ? 1 : 0
+                        visible: widgetRowWrapper.index < manageRoot.hostedWidgets.length - 1
 
-                  // Eject back to bar
-                  Rectangle {
-                    width: 24
-                    height: 24
-                    radius: 4
-                    color: "transparent"
-                    border.color: manageRoot.mutedColor
-                    border.width: 1
+                        Text {
+                          anchors.centerIn: parent
+                          text: "\uf078" // chevron-down
+                          textFormat: Text.PlainText
+                          renderType: Text.NativeRendering
+                          font.family: Style.font.family
+                          font.pixelSize: Style.font.caption
+                          color: manageRoot.mutedColor
+                        }
+                        MouseArea {
+                          anchors.fill: parent
+                          cursorShape: Qt.PointingHandCursor
+                          onClicked: manageRoot.reorderWidget(widgetRowWrapper.index, widgetRowWrapper.index + 1)
+                        }
+                      }
 
-                    Text {
-                      anchors.centerIn: parent
-                      text: "\uf08b" // nf-fa-sign_out
-                      textFormat: Text.PlainText
-                      renderType: Text.NativeRendering
-                      font.family: Style.font.family
-                      font.pixelSize: Style.font.caption
-                      color: manageRoot.mutedColor
-                    }
-                    MouseArea {
-                      anchors.fill: parent
-                      cursorShape: Qt.PointingHandCursor
-                      onClicked: manageRoot.releaseWidget(widgetRowDelegate.wId)
+                      // Pin toggle
+                      Rectangle {
+                        width: 24
+                        height: 24
+                        radius: 4
+                        color: widgetRowWrapper.isPinned ? Color.accent : "transparent"
+                        border.color: widgetRowWrapper.isPinned ? Color.accent : manageRoot.mutedColor
+                        border.width: widgetRowWrapper.isPinned ? 0 : 1
+
+                        Text {
+                          anchors.centerIn: parent
+                          text: "\uf08d" // nf-fa-thumb_tack
+                          textFormat: Text.PlainText
+                          renderType: Text.NativeRendering
+                          font.family: Style.font.family
+                          font.pixelSize: Style.font.caption
+                          color: widgetRowWrapper.isPinned ? Color.background : manageRoot.mutedColor
+                        }
+                        MouseArea {
+                          anchors.fill: parent
+                          cursorShape: Qt.PointingHandCursor
+                          onClicked: manageRoot.togglePinnedWidget(widgetRowWrapper.wId)
+                        }
+                      }
+
+                      // Hide toggle
+                      Rectangle {
+                        width: 24
+                        height: 24
+                        radius: 4
+                        color: widgetRowWrapper.isHidden ? Color.urgent : "transparent"
+                        border.color: widgetRowWrapper.isHidden ? Color.urgent : manageRoot.mutedColor
+                        border.width: widgetRowWrapper.isHidden ? 0 : 1
+
+                        Text {
+                          anchors.centerIn: parent
+                          text: widgetRowWrapper.isHidden ? "\uf070" : "\uf06e" // eye-slash / eye
+                          textFormat: Text.PlainText
+                          renderType: Text.NativeRendering
+                          font.family: Style.font.family
+                          font.pixelSize: Style.font.caption
+                          color: widgetRowWrapper.isHidden ? Color.background : manageRoot.mutedColor
+                        }
+                        MouseArea {
+                          anchors.fill: parent
+                          cursorShape: Qt.PointingHandCursor
+                          onClicked: manageRoot.toggleHiddenWidget(widgetRowWrapper.wId)
+                        }
+                      }
+
+                      // Eject back to bar
+                      Rectangle {
+                        width: 24
+                        height: 24
+                        radius: 4
+                        color: "transparent"
+                        border.color: manageRoot.mutedColor
+                        border.width: 1
+
+                        Text {
+                          anchors.centerIn: parent
+                          text: "\uf08b" // nf-fa-sign_out
+                          textFormat: Text.PlainText
+                          renderType: Text.NativeRendering
+                          font.family: Style.font.family
+                          font.pixelSize: Style.font.caption
+                          color: manageRoot.mutedColor
+                        }
+                        MouseArea {
+                          anchors.fill: parent
+                          cursorShape: Qt.PointingHandCursor
+                          onClicked: manageRoot.releaseWidget(widgetRowWrapper.wId)
+                        }
+                      }
                     }
                   }
                 }
               }
             }
-          }
 
           Item { width: 1; height: 6 }
 

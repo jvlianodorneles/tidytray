@@ -47,6 +47,22 @@ def find_layout_entry(layout, target_id):
                 return {"section": sec, "entries": entries, "index": idx, "entry": entry}
     return None
 
+def ensure_plugin_listed(config, plugin_id):
+    if not plugin_id or "." not in plugin_id:
+        return False
+    if "plugins" not in config or not isinstance(config["plugins"], list):
+        config["plugins"] = []
+    if plugin_id not in config["plugins"]:
+        config["plugins"].append(plugin_id)
+        return True
+    return False
+
+def unlist_plugin(config, plugin_id):
+    if not plugin_id or "plugins" not in config or not isinstance(config["plugins"], list):
+        return
+    if plugin_id in config["plugins"]:
+        config["plugins"].remove(plugin_id)
+
 def capture(tray_id, source_id):
     config = load_config()
     if not config or "bar" not in config or "layout" not in config["bar"]:
@@ -74,7 +90,10 @@ def capture(tray_id, source_id):
         tray_entry["widgets"] = []
     
     entry_obj = {"id": removed_entry} if isinstance(removed_entry, str) else removed_entry
-    tray_entry["widgets"].append({"entry": entry_obj})
+    wrapper = {"entry": entry_obj}
+    if ensure_plugin_listed(config, source_id):
+        wrapper["listed"] = True
+    tray_entry["widgets"].append(wrapper)
     return save_config(config)
 
 def release(tray_id, widget_id):
@@ -91,16 +110,21 @@ def release(tray_id, widget_id):
         return False
     
     removed = None
+    was_listed = False
     new_widgets = []
     for w in tray_entry["widgets"]:
         w_obj = w.get("entry", w) if isinstance(w, dict) else w
         if entry_id(w_obj) == widget_id:
             removed = w_obj
+            was_listed = isinstance(w, dict) and w.get("listed", False)
         else:
             new_widgets.append(w)
             
     if not removed:
         return False
+        
+    if was_listed:
+        unlist_plugin(config, widget_id)
         
     tray_entry["widgets"] = new_widgets
     sec_name = tray["section"]
