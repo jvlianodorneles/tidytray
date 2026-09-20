@@ -629,14 +629,27 @@ Item {
                   anchors.verticalCenter: parent.verticalCenter
                   spacing: 8
 
+                  Image {
+                    id: sniIconImg
+                    width: 18
+                    height: 18
+                    anchors.verticalCenter: parent.verticalCenter
+                    fillMode: Image.PreserveAspectFit
+                    sourceSize.width: 36
+                    sourceSize.height: 36
+                    source: String(modelData.icon || "")
+                    visible: source !== "" && status === Image.Ready
+                  }
+
                   Text {
-                    text: "\uf2d0" // nf-fa-window_maximize
+                    text: "\uf2d0" // nf-fa-window_maximize fallback
                     textFormat: Text.PlainText
                     renderType: Text.NativeRendering
                     font.family: Style.font.family
                     font.pixelSize: Style.font.bodySmall
                     color: Color.accent
                     anchors.verticalCenter: parent.verticalCenter
+                    visible: !sniIconImg.visible
                   }
 
                   Text {

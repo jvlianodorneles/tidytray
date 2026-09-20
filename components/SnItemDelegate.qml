@@ -11,7 +11,7 @@ Item {
 
   property var modelData: null
   property var bar: null
-  property color foregroundColor: Color.foreground
+  property color foregroundColor: bar ? bar.foreground : Color.foreground
   property int iconExtent: Style.bar.iconSlot
   property bool vertical: false
 
@@ -59,6 +59,7 @@ Item {
     Behavior on border.color { ColorAnimation { duration: 120 } }
 
     Item {
+      id: iconContainer
       anchors.centerIn: parent
       width: Style.bar.iconCanvas
       height: Style.bar.iconCanvas
@@ -70,17 +71,17 @@ Item {
         id: iconImage
         anchors.fill: parent
         fillMode: Image.PreserveAspectFit
-        sourceSize.width: Math.round(Math.min(width, height) * Screen.devicePixelRatio)
-        sourceSize.height: Math.round(Math.min(width, height) * Screen.devicePixelRatio)
-        source: parent.rawIcon
-        visible: !parent.isSymbolic
-        layer.enabled: parent.isSymbolic
+        sourceSize.width: Math.max(16, Math.round(Math.min(width, height) * Screen.devicePixelRatio))
+        sourceSize.height: Math.max(16, Math.round(Math.min(width, height) * Screen.devicePixelRatio))
+        source: iconContainer.rawIcon
+        visible: !iconContainer.isSymbolic
+        layer.enabled: iconContainer.isSymbolic
       }
 
       MultiEffect {
         anchors.fill: iconImage
         source: iconImage
-        visible: parent.isSymbolic
+        visible: iconContainer.isSymbolic
         colorization: 1.0
         colorizationColor: snItemRoot.foregroundColor
       }

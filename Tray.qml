@@ -570,6 +570,7 @@ BarWidget {
           id: inlineContentRow
           spacing: Style.space(4)
           anchors.verticalCenter: parent.verticalCenter
+          height: parent.height
 
           Repeater {
             model: root.drawerHostedWidgets

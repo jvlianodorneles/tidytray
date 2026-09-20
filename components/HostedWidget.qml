@@ -68,6 +68,12 @@ Item {
     if ("entry" in target) target.entry = hostedRoot.entry
     if ("moduleName" in target) target.moduleName = widgetId
     if ("settings" in target) target.settings = widgetSettings
+    try {
+      target.anchors.fill = target.parent
+    } catch (e) {
+      target.width = Qt.binding(function() { return hostedRoot.width })
+      target.height = Qt.binding(function() { return hostedRoot.height })
+    }
   }
 
   Loader {

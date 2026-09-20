@@ -166,19 +166,21 @@ Item {
           Repeater {
             model: drawerGridRoot.hostedWidgets
             delegate: Item {
+              id: gridTile
               required property var modelData
               readonly property string wId: TrayModel.wrapperId(modelData)
               readonly property bool matches: !drawerGridRoot.searchQuery ||
                 wId.toLowerCase().indexOf(drawerGridRoot.searchQuery.toLowerCase()) !== -1
 
               visible: matches
-              implicitWidth: hostedWidget.implicitWidth
-              implicitHeight: hostedWidget.implicitHeight
+              width: Math.max(Style.bar.iconSlot, hostedWidget.implicitWidth)
+              height: Math.max(Style.bar.iconSlot, hostedWidget.implicitHeight)
 
               HostedWidget {
                 id: hostedWidget
                 bar: drawerGridRoot.bar
-                modelData: parent.modelData
+                modelData: gridTile.modelData
+                anchors.centerIn: parent
               }
             }
           }
@@ -187,6 +189,7 @@ Item {
           Repeater {
             model: drawerGridRoot.sniItems
             delegate: Item {
+              id: sniTile
               required property var modelData
               readonly property string sId: String(modelData.id || "")
               readonly property bool matches: !drawerGridRoot.searchQuery ||
@@ -194,13 +197,14 @@ Item {
                 String(modelData.title || "").toLowerCase().indexOf(drawerGridRoot.searchQuery.toLowerCase()) !== -1
 
               visible: matches
-              implicitWidth: snItem.implicitWidth
-              implicitHeight: snItem.implicitHeight
+              width: Style.bar.iconSlot
+              height: Style.bar.iconSlot
 
               SnItemDelegate {
                 id: snItem
                 bar: drawerGridRoot.bar
-                modelData: parent.modelData
+                modelData: sniTile.modelData
+                anchors.centerIn: parent
                 onRequestMenu: function(item, target, mouse) {
                   drawerGridRoot.sniMenuRequested(item, target, mouse)
                 }
@@ -220,6 +224,7 @@ Item {
           Repeater {
             model: drawerGridRoot.hostedWidgets
             delegate: Rectangle {
+              id: hostedListRow
               required property var modelData
               readonly property string wId: TrayModel.wrapperId(modelData)
               readonly property bool matches: !drawerGridRoot.searchQuery ||
@@ -239,12 +244,12 @@ Item {
 
                 HostedWidget {
                   bar: drawerGridRoot.bar
-                  modelData: parent.parent.modelData
+                  modelData: hostedListRow.modelData
                   anchors.verticalCenter: parent.verticalCenter
                 }
 
                 Text {
-                  text: TrayModel.friendlyDisplayName(parent.parent.wId)
+                  text: TrayModel.friendlyDisplayName(hostedListRow.wId)
                   textFormat: Text.PlainText
                   renderType: Text.NativeRendering
                   font.pixelSize: Style.font.bodySmall
@@ -260,6 +265,7 @@ Item {
           Repeater {
             model: drawerGridRoot.sniItems
             delegate: Rectangle {
+              id: sniListRow
               required property var modelData
               readonly property string sId: String(modelData.id || "")
               readonly property bool matches: !drawerGridRoot.searchQuery ||
@@ -280,7 +286,7 @@ Item {
 
                 SnItemDelegate {
                   bar: drawerGridRoot.bar
-                  modelData: parent.parent.modelData
+                  modelData: sniListRow.modelData
                   anchors.verticalCenter: parent.verticalCenter
                   onRequestMenu: function(item, target, mouse) {
                     drawerGridRoot.sniMenuRequested(item, target, mouse)
@@ -288,7 +294,7 @@ Item {
                 }
 
                 Text {
-                  text: modelData.title || TrayModel.friendlyDisplayName(parent.parent.sId)
+                  text: sniListRow.modelData.title || TrayModel.friendlyDisplayName(sniListRow.sId)
                   textFormat: Text.PlainText
                   renderType: Text.NativeRendering
                   font.pixelSize: Style.font.bodySmall
