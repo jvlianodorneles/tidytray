@@ -17,6 +17,7 @@ Item {
 
   readonly property int itemsSpacing: Style.space(6)
   readonly property int stripPadding: Style.space(6)
+  readonly property alias itemsRowKids: itemsRow.children
 
   implicitWidth: vertical ? Style.bar.sizeHorizontal : (itemsRow.implicitWidth + stripPadding * 2)
   implicitHeight: vertical ? (itemsRow.implicitHeight + stripPadding * 2) : Style.bar.sizeHorizontal

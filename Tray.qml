@@ -36,12 +36,6 @@ BarWidget {
   property bool expanded: false
   property bool manageOpen: false
 
-  onManageOpenChanged: {
-    if (managePopup && managePopup.open !== manageOpen) {
-      managePopup.open = manageOpen
-    }
-  }
-
   IpcHandler {
     target: "tidytray"
     function status(): string {
@@ -51,13 +45,13 @@ BarWidget {
           var c = inlineContentRow.children[i]
           kids.push({
             type: String(c),
-            widgetId: c.widgetId,
-            effectiveBar: String(c.effectiveBar),
-            registryComponent: String(c.registryComponent),
-            activeItem: String(c.activeItem),
-            modelData: c.modelData ? (c.modelData.id || (c.modelData.entry ? c.modelData.entry.id : null) || c.modelData) : null,
-            status: c.modelData && "status" in c.modelData ? c.modelData.status : null,
-            isVisible: c.isVisible,
+            widgetId: ("widgetId" in c) ? c.widgetId : "",
+            effectiveBar: ("effectiveBar" in c) ? String(c.effectiveBar) : "",
+            registryComponent: ("registryComponent" in c) ? String(c.registryComponent) : "",
+            activeItem: ("activeItem" in c) ? String(c.activeItem) : "",
+            modelData: ("modelData" in c && c.modelData) ? (c.modelData.id || (c.modelData.entry ? c.modelData.entry.id : null) || c.modelData) : null,
+            status: ("modelData" in c && c.modelData && "status" in c.modelData) ? c.modelData.status : null,
+            isVisible: ("isVisible" in c) ? c.isVisible : c.visible,
             implicitWidth: c.implicitWidth,
             implicitHeight: c.implicitHeight,
             visible: c.visible,
@@ -82,14 +76,67 @@ BarWidget {
             opacity: rk.opacity
           })
         }
+        var dropdownKids = []
+        if (dropdownStrip && dropdownStrip.hostedWidgets) {
+          dropdownKids.push({
+            hostedWidgetsCount: dropdownStrip.hostedWidgets.length,
+            sniItemsCount: dropdownStrip.sniItems ? dropdownStrip.sniItems.length : 0,
+            bar: String(dropdownStrip.bar)
+          })
+        }
+        var drawerKids = []
+        if (drawerGridComp && drawerGridComp.hostedWidgets) {
+          drawerKids.push({
+            hostedWidgetsCount: drawerGridComp.hostedWidgets.length,
+            sniItemsCount: drawerGridComp.sniItems ? drawerGridComp.sniItems.length : 0,
+            bar: String(drawerGridComp.bar)
+          })
+        }
+        var drawerTiles = []
+        if (drawerGridComp && drawerGridComp.flowKids) {
+          for (var d = 0; d < drawerGridComp.flowKids.length; d++) {
+            var dc = drawerGridComp.flowKids[d]
+            drawerTiles.push({
+              type: String(dc),
+              wId: dc.wId,
+              matches: dc.matches,
+              width: dc.width,
+              height: dc.height,
+              visible: dc.visible,
+              implicitWidth: dc.implicitWidth,
+              implicitHeight: dc.implicitHeight
+            })
+          }
+        }
+        var dropdownTiles = []
+        if (dropdownStrip && dropdownStrip.itemsRowKids) {
+          for (var dp = 0; dp < dropdownStrip.itemsRowKids.length; dp++) {
+            var dpc = dropdownStrip.itemsRowKids[dp]
+            dropdownTiles.push({
+              type: String(dpc),
+              widgetId: ("widgetId" in dpc) ? dpc.widgetId : "",
+              width: dpc.width,
+              height: dpc.height,
+              visible: dpc.visible,
+              implicitWidth: dpc.implicitWidth,
+              implicitHeight: dpc.implicitHeight
+            })
+          }
+        }
         return JSON.stringify({
           displayMode: root.displayMode,
           expanded: root.expanded,
           drawerHostedCount: root.drawerHostedWidgets.length,
           drawerSniCount: root.drawerSniItems.length,
+          configuredWidgetsCount: root.configuredWidgets.length,
           effectiveHostBar: String(root.effectiveHostBar),
-          rowKids: rowKids,
-          children: kids
+          dropdownOpen: dropdownPanel ? dropdownPanel.open : false,
+          dropdownVisible: dropdownPanel ? dropdownPanel.visible : false,
+          drawerOpen: drawerGridPanel ? drawerGridPanel.open : false,
+          drawerVisible: drawerGridPanel ? drawerGridPanel.visible : false,
+          drawerTiles: drawerTiles,
+          dropdownTiles: dropdownTiles,
+          rowKids: rowKids
         })
       } catch (e) {
         return "ERROR: " + e.message + " " + e.stack
@@ -104,7 +151,6 @@ BarWidget {
     id: manageController
     function close() {
       root.manageOpen = false
-      if (managePopup) managePopup.open = false
     }
   }
 
@@ -112,7 +158,6 @@ BarWidget {
     id: dropdownController
     function close() {
       root.expanded = false
-      if (dropdownPanel) dropdownPanel.open = false
     }
   }
 
@@ -120,7 +165,6 @@ BarWidget {
     id: drawerController
     function close() {
       root.expanded = false
-      if (drawerGridPanel) drawerGridPanel.open = false
     }
   }
 
@@ -128,9 +172,61 @@ BarWidget {
     id: menuController
     function close() {
       root.trayMenuOpen = false
-      if (trayMenuPanel) trayMenuPanel.open = false
       root.resetTrayMenu()
     }
+  }
+
+  // Local popout proxy for hosted widgets placed inside floating panels (drawer/dropdown)
+  // so opening a child's PopupCard or KeyboardPanel coordinates locally rather than
+  // triggering Bar.qml to close the parent drawer panel.
+  QtObject {
+    id: drawerBarProxy
+    readonly property var hostBar: root.effectiveHostBar
+
+    property var activePopout: null
+
+    function requestPopout(owner) {
+      if (activePopout === owner) return
+      if (activePopout) {
+        if ("closeForPopoutSwitch" in activePopout) activePopout.closeForPopoutSwitch()
+        else if ("close" in activePopout) activePopout.close()
+      }
+      activePopout = owner
+    }
+
+    function releasePopout(owner) {
+      if (activePopout === owner) activePopout = null
+    }
+
+    function closeChildPopouts() {
+      if (activePopout) {
+        if ("close" in activePopout) activePopout.close()
+        activePopout = null
+      }
+    }
+
+    // Forward presentation and shell API to the real bar
+    readonly property var barWidgetRegistry: hostBar ? hostBar.barWidgetRegistry : null
+    readonly property var shell: hostBar ? hostBar.shell : null
+    readonly property string position: hostBar ? hostBar.position : "top"
+    readonly property bool vertical: hostBar ? hostBar.vertical : false
+    readonly property int barSize: hostBar ? hostBar.barSize : Style.bar.sizeHorizontal
+    readonly property color foreground: hostBar ? hostBar.foreground : "transparent"
+    readonly property color barForeground: hostBar ? hostBar.barForeground : "transparent"
+    readonly property color background: hostBar ? hostBar.background : "transparent"
+    readonly property color urgent: hostBar ? hostBar.urgent : "transparent"
+    readonly property string fontFamily: hostBar ? hostBar.fontFamily : ""
+    readonly property bool transparent: hostBar ? hostBar.transparent : false
+    readonly property var layoutConfig: hostBar ? hostBar.layoutConfig : ({})
+    readonly property var clickTargets: hostBar ? hostBar.clickTargets : []
+
+    function showTooltip(target, text) { if (hostBar) hostBar.showTooltip(target, text) }
+    function hideTooltip(target) { if (hostBar) hostBar.hideTooltip(target) }
+    function registerClickTarget(target) { if (hostBar && hostBar.registerClickTarget) hostBar.registerClickTarget(target) }
+    function unregisterClickTarget(target) { if (hostBar && hostBar.unregisterClickTarget) hostBar.unregisterClickTarget(target) }
+    function customModuleType(entry) { return hostBar && typeof hostBar.customModuleType === "function" ? hostBar.customModuleType(entry) : "" }
+    function customModuleSource(entry) { return hostBar && typeof hostBar.customModuleSource === "function" ? hostBar.customModuleSource(entry) : "" }
+    function restartShell() { if (hostBar && hostBar.restartShell) hostBar.restartShell() }
   }
 
   readonly property bool vertical: root.bar ? root.bar.vertical : false
@@ -630,7 +726,7 @@ BarWidget {
           height: parent.height
 
           Repeater {
-            model: root.drawerHostedWidgets
+            model: (root.displayMode === "inline" || root.displayMode === "flat") ? root.drawerHostedWidgets : []
             delegate: HostedWidget {
               bar: root.effectiveHostBar
               vertical: root.vertical
@@ -638,7 +734,7 @@ BarWidget {
           }
 
           Repeater {
-            model: root.drawerSniItems
+            model: (root.displayMode === "inline" || root.displayMode === "flat") ? root.drawerSniItems : []
             delegate: SnItemDelegate {
               bar: root.effectiveHostBar
               vertical: root.vertical
@@ -666,6 +762,10 @@ BarWidget {
     contentWidth: dropdownPanel.fittedContentWidth(dropdownStrip.implicitWidth)
     contentHeight: dropdownPanel.fittedContentHeight(dropdownStrip.implicitHeight)
 
+    onOpenChanged: {
+      if (!open) drawerBarProxy.closeChildPopouts()
+    }
+
     PanelKeyCatcher {
       id: dropdownKeyCatcher
       anchors.fill: parent
@@ -678,9 +778,9 @@ BarWidget {
       DropdownStrip {
         id: dropdownStrip
         anchors.fill: parent
-        bar: root.effectiveHostBar
-        hostedWidgets: root.drawerHostedWidgets
-        sniItems: root.drawerSniItems
+        bar: drawerBarProxy
+        hostedWidgets: root.displayMode === "dropdown" ? root.drawerHostedWidgets : []
+        sniItems: root.displayMode === "dropdown" ? root.drawerSniItems : []
         vertical: root.vertical
         onSniMenuRequested: function(item, target, mouse) {
           root.openTrayMenu(item, target, mouse)
@@ -703,6 +803,10 @@ BarWidget {
     contentWidth: drawerGridPanel.fittedContentWidth(Style.space(340))
     contentHeight: drawerGridPanel.fittedContentHeight(drawerGridComp.neededHeight, Style.space(500))
 
+    onOpenChanged: {
+      if (!open) drawerBarProxy.closeChildPopouts()
+    }
+
     PanelKeyCatcher {
       id: drawerKeyCatcher
       anchors.fill: parent
@@ -715,9 +819,9 @@ BarWidget {
       DrawerGrid {
         id: drawerGridComp
         anchors.fill: parent
-        bar: root.effectiveHostBar
-        hostedWidgets: root.drawerHostedWidgets
-        sniItems: root.drawerSniItems
+        bar: drawerBarProxy
+        hostedWidgets: root.displayMode === "drawer" ? root.drawerHostedWidgets : []
+        sniItems: root.displayMode === "drawer" ? root.drawerSniItems : []
         onOpenSettingsRequested: root.openManage()
         onSniMenuRequested: function(item, target, mouse) {
           root.openTrayMenu(item, target, mouse)
@@ -730,13 +834,7 @@ BarWidget {
   // Management Hub Popup
   // ---------------------------------------------------------------------------
   function openManage() {
-    if (manageOpen) {
-      manageOpen = false
-      if (managePopup) managePopup.open = false
-    } else {
-      manageOpen = true
-      if (managePopup) managePopup.open = true
-    }
+    manageOpen = !manageOpen
   }
 
   KeyboardPanel {
@@ -751,8 +849,8 @@ BarWidget {
     contentHeight: managePopup.fittedContentHeight(manageComp.neededHeight, Style.space(560))
 
     onOpenChanged: {
-      if (root.manageOpen !== open) {
-        root.manageOpen = open
+      if (!open) {
+        root.manageOpen = false
       }
     }
 
@@ -1006,5 +1104,34 @@ BarWidget {
         }
       }
     }
+  }
+
+  // Explicit binding guards to ensure open states are never permanently overwritten
+  Binding {
+    target: dropdownPanel
+    property: "open"
+    value: root.displayMode === "dropdown" && root.expanded && !root.manageOpen
+    restoreMode: Binding.RestoreBinding
+  }
+
+  Binding {
+    target: drawerGridPanel
+    property: "open"
+    value: root.displayMode === "drawer" && root.expanded && !root.manageOpen
+    restoreMode: Binding.RestoreBinding
+  }
+
+  Binding {
+    target: managePopup
+    property: "open"
+    value: root.manageOpen
+    restoreMode: Binding.RestoreBinding
+  }
+
+  Binding {
+    target: trayMenuPanel
+    property: "open"
+    value: root.trayMenuOpen
+    restoreMode: Binding.RestoreBinding
   }
 }

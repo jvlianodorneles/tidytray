@@ -19,6 +19,8 @@ Item {
 
   readonly property bool isEditing: searchInput.activeFocus
   readonly property int neededHeight: drawerColumn.implicitHeight + Style.space(16)
+  readonly property alias flowKids: flowView.children
+  readonly property alias listKids: listViewCol.children
 
   implicitWidth: Style.space(340)
   implicitHeight: neededHeight
@@ -164,7 +166,7 @@ Item {
 
           // Hosted Widgets
           Repeater {
-            model: drawerGridRoot.hostedWidgets
+            model: drawerGridRoot.viewMode === "grid" ? drawerGridRoot.hostedWidgets : []
             delegate: Item {
               id: gridTile
               required property var modelData
@@ -187,7 +189,7 @@ Item {
 
           // SNI Items
           Repeater {
-            model: drawerGridRoot.sniItems
+            model: drawerGridRoot.viewMode === "grid" ? drawerGridRoot.sniItems : []
             delegate: Item {
               id: sniTile
               required property var modelData
@@ -222,7 +224,7 @@ Item {
 
           // Hosted Widgets
           Repeater {
-            model: drawerGridRoot.hostedWidgets
+            model: drawerGridRoot.viewMode === "list" ? drawerGridRoot.hostedWidgets : []
             delegate: Rectangle {
               id: hostedListRow
               required property var modelData
@@ -263,7 +265,7 @@ Item {
 
           // SNI Items
           Repeater {
-            model: drawerGridRoot.sniItems
+            model: drawerGridRoot.viewMode === "list" ? drawerGridRoot.sniItems : []
             delegate: Rectangle {
               id: sniListRow
               required property var modelData
