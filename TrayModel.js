@@ -4,8 +4,8 @@
 // Designed to run both within QML (.pragma library) and under Node.js for tests.
 
 var SECTIONS = ["left", "center", "right"]
-var DISPLAY_MODES = ["inline", "dropdown", "drawer", "flat"]
-var INDICATOR_ICONS = ["chevron", "dot", "dots", "plus", "none"]
+var DISPLAY_MODES = ["inline", "dropdown", "drawer"]
+var INDICATOR_ICONS = ["chevron", "dot", "dots", "plus"]
 var TRIGGERS = ["click", "hover"]
 
 function isPlainObject(value) {

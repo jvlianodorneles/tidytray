@@ -17,14 +17,17 @@ console.log("=== Testing TrayModel.js ===")
 assert.strictEqual(M.normalizeDisplayMode("INLINE"), "inline")
 assert.strictEqual(M.normalizeDisplayMode("dropdown"), "dropdown")
 assert.strictEqual(M.normalizeDisplayMode("invalid"), "inline")
+assert.strictEqual(M.normalizeDisplayMode("flat"), "inline")
 
 assert.strictEqual(M.normalizeTrigger("HOVER"), "hover")
 assert.strictEqual(M.normalizeTrigger("click"), "click")
 assert.strictEqual(M.normalizeTrigger("foo"), "click")
 
 assert.strictEqual(M.normalizeIndicatorIcon("dots"), "dots")
-assert.strictEqual(M.normalizeIndicatorIcon("none"), "none")
+assert.strictEqual(M.normalizeIndicatorIcon("none"), "chevron")
 assert.strictEqual(M.normalizeIndicatorIcon("unknown"), "chevron")
+assert.deepStrictEqual(Array.from(M.DISPLAY_MODES), ["inline", "dropdown", "drawer"])
+assert.deepStrictEqual(Array.from(M.INDICATOR_ICONS), ["chevron", "dot", "dots", "plus"])
 
 assert.strictEqual(M.normalizeRehideSeconds(-5), 0)
 assert.strictEqual(M.normalizeRehideSeconds("15"), 15)

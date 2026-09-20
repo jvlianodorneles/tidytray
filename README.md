@@ -126,9 +126,9 @@ Settings can be toggled interactively in the 3D Management Hub (`s` key or right
 
 | Key | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
-| `displayMode` | `enum` | `"inline"` | Presentation mode: `"inline"`, `"dropdown"`, `"drawer"`, or `"flat"` |
+| `displayMode` | `enum` | `"inline"` | Presentation mode: `"inline"`, `"dropdown"`, or `"drawer"` |
 | `trigger` | `enum` | `"click"` | Open trigger: `"click"` or `"hover"` |
-| `indicatorIcon` | `enum` | `"chevron"` | Indicator glyph: `"chevron"`, `"dot"`, `"dots"`, `"plus"`, `"none"` |
+| `indicatorIcon` | `enum` | `"chevron"` | Indicator glyph: `"chevron"`, `"dot"`, `"dots"`, or `"plus"` |
 | `rehideSeconds` | `integer` | `0` | Seconds before auto-collapsing when inactive (`0` disables) |
 | `revealDuration`| `integer` | `200` | Transition duration in milliseconds |
 | `deduplicateKnown`| `boolean` | `true` | Suppress redundant tray icons when native bar widget exists (e.g. Dropbox) |

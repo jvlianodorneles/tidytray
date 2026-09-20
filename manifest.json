@@ -39,9 +39,9 @@
         "key": "displayMode",
         "type": "enum",
         "label": "Display Mode",
-        "options": ["inline", "dropdown", "drawer", "flat"],
+        "options": ["inline", "dropdown", "drawer"],
         "defaultValue": "inline",
-        "description": "inline: slides out on the bar; dropdown: floating strip beneath the bar; drawer: popout card in grid/list view; flat: all items shown directly on the bar"
+        "description": "inline: slides out on the bar; dropdown: floating strip beneath the bar; drawer: popout card in grid/list view"
       },
       {
         "key": "trigger",
@@ -55,7 +55,7 @@
         "key": "indicatorIcon",
         "type": "enum",
         "label": "Indicator Icon",
-        "options": ["chevron", "dot", "dots", "plus", "none"],
+        "options": ["chevron", "dot", "dots", "plus"],
         "defaultValue": "chevron",
         "description": "Visual indicator glyph for drawer toggle"
       },

@@ -751,18 +751,18 @@ Item {
         width: parent.width
         spacing: 4
 
-        readonly property var modes: ["inline", "dropdown", "drawer", "flat"]
-        readonly property var modeLabels: ["Inline", "Dropdown", "Drawer", "Flat"]
+        readonly property var modes: ["inline", "dropdown", "drawer"]
+        readonly property var modeLabels: ["Inline", "Dropdown", "Drawer"]
 
         Repeater {
-          model: 4
+          model: 3
           Rectangle {
             id: modeItemRect
             required property int index
             readonly property string mName: modesRow.modes[index]
             readonly property bool isSelected: (manageRoot.currentSettings.displayMode || "inline") === mName
 
-            width: (contentColumn.width - 12) / 4
+            width: (contentColumn.width - 8) / 3
             height: 28
             radius: Style.cornerRadius
             color: isSelected ? Color.accent : manageRoot.surfaceAlt
@@ -880,18 +880,18 @@ Item {
         width: parent.width
         spacing: 4
 
-        readonly property var icons: ["chevron", "dot", "dots", "plus", "none"]
-        readonly property var iconLabels: ["Chevron", "Dot", "Dots", "Plus", "None"]
+        readonly property var icons: ["chevron", "dot", "dots", "plus"]
+        readonly property var iconLabels: ["Chevron", "Dot", "Dots", "Plus"]
 
         Repeater {
-          model: 5
+          model: 4
           Rectangle {
             id: iconItemRect
             required property int index
             readonly property string iName: iconsRow.icons[index]
             readonly property bool isSelected: (manageRoot.currentSettings.indicatorIcon || "chevron") === iName
 
-            width: (contentColumn.width - 16) / 5
+            width: (contentColumn.width - 12) / 4
             height: 28
             radius: Style.cornerRadius
             color: isSelected ? Color.accent : manageRoot.surfaceAlt
