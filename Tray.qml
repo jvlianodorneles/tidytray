@@ -76,11 +76,12 @@ BarWidget {
   readonly property bool hasDrawerContent: drawerCount > 0
 
   // Indicator button visibility:
-  // In flat mode, or if drawer is empty, hide indicator unless user configured otherwise
+  // In inline, dropdown, and drawer modes, always show the indicator so user can click/manage
+  // In flat mode, hide indicator if there are no items in drawer
   readonly property bool showIndicator: {
     if (indicatorIcon === "none") return false
-    if (displayMode === "flat") return false
-    return hasDrawerContent
+    if (displayMode === "flat") return hasDrawerContent
+    return true
   }
 
   // ---------------------------------------------------------------------------
@@ -98,8 +99,8 @@ BarWidget {
 
   readonly property int totalExtent: pinnedExtent + indicatorExtent + inlineContentExtent + (caretActive ? 4 : 0)
 
-  implicitWidth: vertical ? barSize : totalExtent
-  implicitHeight: vertical ? totalExtent : barSize
+  implicitWidth: vertical ? barSize : Math.max(showIndicator ? indicatorExtent : 0, totalExtent)
+  implicitHeight: vertical ? Math.max(showIndicator ? indicatorExtent : 0, totalExtent) : barSize
 
   // ---------------------------------------------------------------------------
   // Auto-rehide Timer
@@ -165,20 +166,15 @@ BarWidget {
     return (mId && mId !== root.moduleName) ? mId : ""
   }
 
-  Connections {
-    target: root.bar
-
-    function onBarDragSourceChanged() {
-      if (!root.bar) return
-      if (!root.bar.barDragSource && root.dropArmedId) {
-        // Dropped!
-        var sourceId = root.dropArmedId
-        root.dropArmedId = ""
-        root.caretActive = false
-        root.mutateConfig(function(config) {
-          TrayModel.captureIntoTray(config, root.moduleName, sourceId)
-        })
-      }
+  readonly property var activeBarDragSource: root.bar ? root.bar.barDragSource : null
+  onActiveBarDragSourceChanged: {
+    if (!activeBarDragSource && root.dropArmedId) {
+      var sourceId = root.dropArmedId
+      root.dropArmedId = ""
+      root.caretActive = false
+      root.mutateConfig(function(config) {
+        TrayModel.captureIntoTray(config, root.moduleName, sourceId)
+      })
     }
   }
 
@@ -196,7 +192,7 @@ BarWidget {
       acceptedButtons: Qt.NoButton
       propagateComposedEvents: true
       onEntered: {
-        if (root.triggerMode === "hover" && root.hasDrawerContent && !root.expanded) {
+        if (root.triggerMode === "hover" && !root.expanded) {
           root.expand()
         }
       }
@@ -268,7 +264,7 @@ BarWidget {
             root.dropArmedId = root.draggedModuleId
             root.caretActive = true
           }
-          if (root.triggerMode === "hover" && root.hasDrawerContent && !root.expanded) {
+          if (root.triggerMode === "hover" && !root.expanded) {
             root.expand()
           }
         }
@@ -460,6 +456,11 @@ BarWidget {
             TrayModel.releaseFromTray(config, root.moduleName, wId)
           })
         }
+        onCaptureWidget: function(wId) {
+          root.mutateConfig(function(config) {
+            TrayModel.captureIntoTray(config, root.moduleName, wId)
+          })
+        }
         onTogglePinnedSni: function(sId) {
           var res = TrayModel.toggleBucketId(root.pinnedIds, root.hiddenIds, sId, "pinned")
           root.saveSettings({ pinned: res.pinned, hidden: res.hidden })
@@ -557,8 +558,8 @@ BarWidget {
       Rectangle {
         width: parent.width
         height: 28
-        radius: Style.radius.small
-        color: Color.bar.buttonHover
+        radius: Style.cornerRadius
+        color: Style.hoverFill
         visible: root.submenuDepth > 0
 
         Row {
@@ -570,8 +571,8 @@ BarWidget {
             text: "\uf053" // chevron-left
             textFormat: Text.PlainText
             renderType: Text.NativeRendering
-            font.family: Style.fontFace.icon
-            font.pixelSize: Style.fontSize.tiny
+            font.family: Style.font.family
+            font.pixelSize: Style.font.caption
             color: Color.accent
             anchors.verticalCenter: parent.verticalCenter
           }
@@ -580,7 +581,8 @@ BarWidget {
             text: root.submenuDepth > 0 ? root.submenuStack[root.submenuDepth - 1].title : "Back"
             textFormat: Text.PlainText
             renderType: Text.NativeRendering
-            font.pixelSize: Style.fontSize.small
+            font.family: Style.font.family
+            font.pixelSize: Style.font.bodySmall
             color: Color.foreground
             anchors.verticalCenter: parent.verticalCenter
             elide: Text.ElideRight
@@ -604,15 +606,15 @@ BarWidget {
 
           width: menuListCol.width
           height: isSeparator ? 5 : 28
-          radius: Style.radius.small
-          color: (!isSeparator && menuEntryMouse.containsMouse) ? Color.bar.buttonHover : "transparent"
+          radius: Style.cornerRadius
+          color: (!isSeparator && menuEntryMouse.containsMouse) ? Style.hoverFill : "transparent"
 
           // Separator line
           Rectangle {
             anchors.centerIn: parent
             width: parent.width - 12
             height: 1
-            color: Color.bar.border
+            color: Color.popups.border
             visible: parent.isSeparator
           }
 
@@ -627,9 +629,10 @@ BarWidget {
               text: parent.parent.modelData ? String(parent.parent.modelData.text || "") : ""
               textFormat: Text.PlainText
               renderType: Text.NativeRendering
-              font.pixelSize: Style.fontSize.small
+              font.family: Style.font.family
+              font.pixelSize: Style.font.bodySmall
               color: parent.parent.modelData && parent.parent.modelData.enabled !== false
-                ? Color.foreground : Color.bar.buttonForeground
+                ? Color.foreground : Color.muted
               anchors.verticalCenter: parent.verticalCenter
               width: parent.width - 24
               elide: Text.ElideRight
@@ -639,9 +642,9 @@ BarWidget {
               text: "\uf054" // chevron-right
               textFormat: Text.PlainText
               renderType: Text.NativeRendering
-              font.family: Style.fontFace.icon
-              font.pixelSize: Style.fontSize.tiny
-              color: Color.bar.buttonForeground
+              font.family: Style.font.family
+              font.pixelSize: Style.font.caption
+              color: Color.muted
               visible: parent.parent.hasSubmenu
               anchors.verticalCenter: parent.verticalCenter
             }

@@ -18,20 +18,20 @@ Item {
   signal hoverEntered()
   signal hoverExited()
 
-  readonly property int buttonSize: Style.bar.iconSize + Style.space(6)
-  implicitWidth: indicatorIcon === "none" ? 0 : (vertical ? Style.bar.sizeHorizontal : buttonSize)
-  implicitHeight: indicatorIcon === "none" ? 0 : (vertical ? buttonSize : Style.bar.sizeHorizontal)
+  readonly property int buttonSlot: Style.bar.iconSlot
+  implicitWidth: indicatorIcon === "none" ? 0 : (vertical ? Style.bar.sizeHorizontal : buttonSlot)
+  implicitHeight: indicatorIcon === "none" ? 0 : (vertical ? buttonSlot : Style.bar.sizeHorizontal)
   visible: indicatorIcon !== "none"
 
   Rectangle {
     id: hoverBg
     anchors.centerIn: parent
-    width: buttonSize
-    height: buttonSize
-    radius: Style.radius.small
-    color: mouseArea.containsMouse ? Color.bar.buttonHover : "transparent"
-    border.color: mouseArea.containsMouse ? Color.bar.buttonBorder : "transparent"
-    border.width: 1
+    width: Style.bar.iconCanvas + Style.space(6)
+    height: Style.bar.iconCanvas + Style.space(6)
+    radius: Style.cornerRadius
+    color: mouseArea.containsMouse ? Style.hoverFill : "transparent"
+    border.color: mouseArea.containsMouse ? Style.hoverBorderColor : "transparent"
+    border.width: mouseArea.containsMouse ? 1 : 0
 
     Behavior on color { ColorAnimation { duration: 120 } }
     Behavior on border.color { ColorAnimation { duration: 120 } }
@@ -41,9 +41,9 @@ Item {
       anchors.centerIn: parent
       textFormat: Text.PlainText
       renderType: Text.NativeRendering
-      font.family: Style.fontFace.icon
+      font.family: Style.font.family
       font.pixelSize: Style.bar.iconFont
-      color: mouseArea.containsMouse ? Color.accent : Color.bar.buttonForeground
+      color: mouseArea.containsMouse ? Color.accent : Color.foreground
 
       text: {
         switch (indicatorRoot.indicatorIcon) {

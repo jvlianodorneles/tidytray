@@ -11,8 +11,8 @@ Item {
 
   property var modelData: null
   property var bar: null
-  property color foregroundColor: Color.bar.foreground
-  property int iconExtent: Style.bar.iconSize + Style.space(6)
+  property color foregroundColor: Color.foreground
+  property int iconExtent: Style.bar.iconSlot
   property bool vertical: false
 
   signal requestMenu(var item, var targetItem, var mouse)
@@ -48,20 +48,20 @@ Item {
   Rectangle {
     id: hoverHighlight
     anchors.centerIn: parent
-    width: iconExtent - 2
-    height: iconExtent - 2
-    radius: Style.radius.small
-    color: mouseArea.containsMouse ? Color.bar.buttonHover : "transparent"
-    border.color: mouseArea.containsMouse ? Color.bar.buttonBorder : "transparent"
-    border.width: 1
+    width: Style.bar.iconCanvas + Style.space(6)
+    height: Style.bar.iconCanvas + Style.space(6)
+    radius: Style.cornerRadius
+    color: mouseArea.containsMouse ? Style.hoverFill : "transparent"
+    border.color: mouseArea.containsMouse ? Style.hoverBorderColor : "transparent"
+    border.width: mouseArea.containsMouse ? 1 : 0
 
     Behavior on color { ColorAnimation { duration: 120 } }
     Behavior on border.color { ColorAnimation { duration: 120 } }
 
     Item {
       anchors.centerIn: parent
-      width: Style.bar.iconSize
-      height: Style.bar.iconSize
+      width: Style.bar.iconCanvas
+      height: Style.bar.iconCanvas
 
       readonly property string rawIcon: modelData ? String(modelData.icon || "") : ""
       readonly property bool isSymbolic: snItemRoot.iconIsSymbolic(rawIcon)

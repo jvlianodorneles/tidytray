@@ -23,9 +23,9 @@ Item {
 
   Rectangle {
     anchors.fill: parent
-    radius: Style.radius.small
+    radius: Style.cornerRadius
     color: Color.bar.background
-    border.color: Color.bar.border
+    border.color: Color.popups.border
     border.width: 1
 
     Row {

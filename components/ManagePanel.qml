@@ -19,13 +19,9 @@ Item {
   signal togglePinnedWidget(string id)
   signal toggleHiddenWidget(string id)
   signal releaseWidget(string id)
+  signal captureWidget(string id)
   signal togglePinnedSni(string id)
   signal toggleHiddenSni(string id)
-
-  readonly property bool lightTheme: {
-    var bg = Color.background
-    return (0.299 * bg.r + 0.587 * bg.g + 0.114 * bg.b) > 0.5
-  }
 
   function fade(c, amount) {
     var bg = Color.background
@@ -37,11 +33,27 @@ Item {
     )
   }
 
-  readonly property color mutedColor: fade(Color.foreground, 0.45)
-  readonly property color surfaceAlt: fade(Color.background, 0.08)
+  readonly property color mutedColor: Color.muted
+  readonly property color surfaceAlt: Style.normalFill
 
   property string searchQuery: ""
   property string activeTab: "items" // "items" or "config"
+
+  // Bar widgets currently on this bar section (candidates to be tucked into TidyTray)
+  readonly property var candidateBarWidgets: {
+    var layout = manageRoot.bar && manageRoot.bar.layoutConfig ? manageRoot.bar.layoutConfig : null
+    if (!layout) return []
+    var secName = TrayModel.layoutSectionFor(layout, "io.github.jvlianodorneles.tidytray") || "right"
+    var entries = layout[secName]
+    if (!Array.isArray(entries)) return []
+    var out = []
+    for (var i = 0; i < entries.length; i++) {
+      var id = TrayModel.entryId(entries[i])
+      if (!id || id === "io.github.jvlianodorneles.tidytray" || id === "omarchy.tray") continue
+      out.push({ id: id })
+    }
+    return out
+  }
 
   implicitWidth: Style.space(380)
   implicitHeight: contentColumn.implicitHeight + Style.space(16)
@@ -60,8 +72,8 @@ Item {
         text: "\uf013" // nf-fa-cog
         textFormat: Text.PlainText
         renderType: Text.NativeRendering
-        font.family: Style.fontFace.icon
-        font.pixelSize: Style.fontSize.large
+        font.family: Style.font.family
+        font.pixelSize: Style.font.title
         color: Color.accent
         anchors.verticalCenter: parent.verticalCenter
       }
@@ -70,8 +82,8 @@ Item {
         text: "TidyTray"
         textFormat: Text.PlainText
         renderType: Text.NativeRendering
-        font.family: Style.fontFace.title
-        font.pixelSize: Style.fontSize.large
+        font.family: Style.font.family
+        font.pixelSize: Style.font.title
         font.bold: true
         color: Color.foreground
         anchors.verticalCenter: parent.verticalCenter
@@ -82,7 +94,7 @@ Item {
         height: 1
       }
 
-      // Tab switcher: Items vs Config
+      // Tab switcher: Items vs Settings
       Row {
         spacing: 4
         anchors.verticalCenter: parent.verticalCenter
@@ -90,14 +102,15 @@ Item {
         Rectangle {
           width: 60
           height: 26
-          radius: Style.radius.small
+          radius: Style.cornerRadius
           color: manageRoot.activeTab === "items" ? Color.accent : manageRoot.surfaceAlt
           Text {
             anchors.centerIn: parent
             text: "Items"
             textFormat: Text.PlainText
             renderType: Text.NativeRendering
-            font.pixelSize: Style.fontSize.small
+            font.family: Style.font.family
+            font.pixelSize: Style.font.bodySmall
             color: manageRoot.activeTab === "items" ? Color.background : Color.foreground
           }
           MouseArea {
@@ -110,14 +123,15 @@ Item {
         Rectangle {
           width: 60
           height: 26
-          radius: Style.radius.small
+          radius: Style.cornerRadius
           color: manageRoot.activeTab === "config" ? Color.accent : manageRoot.surfaceAlt
           Text {
             anchors.centerIn: parent
             text: "Settings"
             textFormat: Text.PlainText
             renderType: Text.NativeRendering
-            font.pixelSize: Style.fontSize.small
+            font.family: Style.font.family
+            font.pixelSize: Style.font.bodySmall
             color: manageRoot.activeTab === "config" ? Color.background : Color.foreground
           }
           MouseArea {
@@ -132,7 +146,7 @@ Item {
       Rectangle {
         width: 26
         height: 26
-        radius: Style.radius.small
+        radius: Style.cornerRadius
         color: closeMouse.containsMouse ? Color.urgent : "transparent"
         anchors.verticalCenter: parent.verticalCenter
 
@@ -141,8 +155,8 @@ Item {
           text: "\uf00d" // nf-fa-times
           textFormat: Text.PlainText
           renderType: Text.NativeRendering
-          font.family: Style.fontFace.icon
-          font.pixelSize: Style.fontSize.small
+          font.family: Style.font.family
+          font.pixelSize: Style.font.bodySmall
           color: closeMouse.containsMouse ? Color.background : manageRoot.mutedColor
         }
 
@@ -172,7 +186,7 @@ Item {
       Rectangle {
         width: parent.width
         height: 32
-        radius: Style.radius.small
+        radius: Style.cornerRadius
         color: manageRoot.surfaceAlt
         border.color: searchField.activeFocus ? Color.accent : "transparent"
         border.width: 1
@@ -187,8 +201,8 @@ Item {
             text: "\uf002" // nf-fa-search
             textFormat: Text.PlainText
             renderType: Text.NativeRendering
-            font.family: Style.fontFace.icon
-            font.pixelSize: Style.fontSize.small
+            font.family: Style.font.family
+            font.pixelSize: Style.font.caption
             color: manageRoot.mutedColor
             anchors.verticalCenter: parent.verticalCenter
           }
@@ -199,7 +213,8 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             text: manageRoot.searchQuery
             color: Color.foreground
-            font.pixelSize: Style.fontSize.small
+            font.family: Style.font.family
+            font.pixelSize: Style.font.bodySmall
             maximumLength: 64
             selectByMouse: true
             onTextChanged: manageRoot.searchQuery = text
@@ -209,7 +224,8 @@ Item {
               textFormat: Text.PlainText
               renderType: Text.NativeRendering
               color: manageRoot.mutedColor
-              font.pixelSize: Style.fontSize.small
+              font.family: Style.font.family
+              font.pixelSize: Style.font.bodySmall
               visible: !searchField.text && !searchField.activeFocus
               anchors.verticalCenter: parent.verticalCenter
             }
@@ -229,12 +245,13 @@ Item {
           width: parent.width
           spacing: 4
 
-          // 1. Hosted Widgets Section
+          // 1. Captured Bar Widgets Section
           Text {
             text: "CAPTURED BAR WIDGETS (" + manageRoot.hostedWidgets.length + ")"
             textFormat: Text.PlainText
             renderType: Text.NativeRendering
-            font.pixelSize: Style.fontSize.tiny
+            font.family: Style.font.family
+            font.pixelSize: Style.font.caption
             font.bold: true
             color: manageRoot.mutedColor
             visible: manageRoot.hostedWidgets.length > 0
@@ -252,7 +269,7 @@ Item {
 
               width: itemsListCol.width
               height: 36
-              radius: Style.radius.small
+              radius: Style.cornerRadius
               color: manageRoot.surfaceAlt
               visible: matchesSearch
 
@@ -266,8 +283,8 @@ Item {
                   text: "\uf009" // nf-fa-th_large
                   textFormat: Text.PlainText
                   renderType: Text.NativeRendering
-                  font.family: Style.fontFace.icon
-                  font.pixelSize: Style.fontSize.small
+                  font.family: Style.font.family
+                  font.pixelSize: Style.font.bodySmall
                   color: Color.accent
                   anchors.verticalCenter: parent.verticalCenter
                 }
@@ -276,7 +293,8 @@ Item {
                   text: TrayModel.friendlyDisplayName(parent.parent.wId)
                   textFormat: Text.PlainText
                   renderType: Text.NativeRendering
-                  font.pixelSize: Style.fontSize.small
+                  font.family: Style.font.family
+                  font.pixelSize: Style.font.bodySmall
                   color: Color.foreground
                   anchors.verticalCenter: parent.verticalCenter
                   width: 140
@@ -301,8 +319,8 @@ Item {
                       text: "\uf08d" // nf-fa-thumb_tack
                       textFormat: Text.PlainText
                       renderType: Text.NativeRendering
-                      font.family: Style.fontFace.icon
-                      font.pixelSize: Style.fontSize.tiny
+                      font.family: Style.font.family
+                      font.pixelSize: Style.font.caption
                       color: parent.parent.parent.parent.isPinned ? Color.background : manageRoot.mutedColor
                     }
                     MouseArea {
@@ -323,8 +341,8 @@ Item {
                       text: parent.parent.parent.parent.isHidden ? "\uf070" : "\uf06e" // eye-slash / eye
                       textFormat: Text.PlainText
                       renderType: Text.NativeRendering
-                      font.family: Style.fontFace.icon
-                      font.pixelSize: Style.fontSize.tiny
+                      font.family: Style.font.family
+                      font.pixelSize: Style.font.caption
                       color: parent.parent.parent.parent.isHidden ? Color.background : manageRoot.mutedColor
                     }
                     MouseArea {
@@ -345,8 +363,8 @@ Item {
                       text: "\uf08b" // nf-fa-sign_out
                       textFormat: Text.PlainText
                       renderType: Text.NativeRendering
-                      font.family: Style.fontFace.icon
-                      font.pixelSize: Style.fontSize.tiny
+                      font.family: Style.font.family
+                      font.pixelSize: Style.font.caption
                       color: manageRoot.mutedColor
                     }
                     MouseArea {
@@ -362,12 +380,97 @@ Item {
 
           Item { width: 1; height: 6 }
 
-          // 2. SNI Items Section
+          // 2. Candidate Widgets currently on the Bar
+          Text {
+            text: "WIDGETS ON THE BAR (CLICK + TO TUCK INTO TRAY)"
+            textFormat: Text.PlainText
+            renderType: Text.NativeRendering
+            font.family: Style.font.family
+            font.pixelSize: Style.font.caption
+            font.bold: true
+            color: manageRoot.mutedColor
+            visible: manageRoot.candidateBarWidgets.length > 0
+          }
+
+          Repeater {
+            model: manageRoot.candidateBarWidgets
+            delegate: Rectangle {
+              required property var modelData
+              readonly property string cId: String(modelData.id || "")
+              readonly property bool matchesSearch: !manageRoot.searchQuery ||
+                cId.toLowerCase().indexOf(manageRoot.searchQuery.toLowerCase()) !== -1
+
+              width: itemsListCol.width
+              height: 36
+              radius: Style.cornerRadius
+              color: manageRoot.surfaceAlt
+              visible: matchesSearch
+
+              Row {
+                anchors.fill: parent
+                anchors.leftMargin: 8
+                anchors.rightMargin: 8
+                spacing: 8
+
+                Text {
+                  text: "\uf0c9" // nf-fa-bars
+                  textFormat: Text.PlainText
+                  renderType: Text.NativeRendering
+                  font.family: Style.font.family
+                  font.pixelSize: Style.font.bodySmall
+                  color: manageRoot.mutedColor
+                  anchors.verticalCenter: parent.verticalCenter
+                }
+
+                Text {
+                  text: TrayModel.friendlyDisplayName(parent.parent.cId)
+                  textFormat: Text.PlainText
+                  renderType: Text.NativeRendering
+                  font.family: Style.font.family
+                  font.pixelSize: Style.font.bodySmall
+                  color: Color.foreground
+                  anchors.verticalCenter: parent.verticalCenter
+                  width: 170
+                  elide: Text.ElideRight
+                }
+
+                Item { width: 10; height: 1 }
+
+                // Action: Move to Tray
+                Rectangle {
+                  width: 24
+                  height: 24
+                  radius: 4
+                  color: Color.accent
+                  anchors.verticalCenter: parent.verticalCenter
+                  Text {
+                    anchors.centerIn: parent
+                    text: "\uf067" // nf-fa-plus
+                    textFormat: Text.PlainText
+                    renderType: Text.NativeRendering
+                    font.family: Style.font.family
+                    font.pixelSize: Style.font.caption
+                    color: Color.background
+                  }
+                  MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: manageRoot.captureWidget(parent.parent.parent.cId)
+                  }
+                }
+              }
+            }
+          }
+
+          Item { width: 1; height: 6 }
+
+          // 3. SNI Items Section
           Text {
             text: "SYSTEM TRAY ICONS (SNI) (" + manageRoot.sniItems.length + ")"
             textFormat: Text.PlainText
             renderType: Text.NativeRendering
-            font.pixelSize: Style.fontSize.tiny
+            font.family: Style.font.family
+            font.pixelSize: Style.font.caption
             font.bold: true
             color: manageRoot.mutedColor
             visible: manageRoot.sniItems.length > 0
@@ -386,7 +489,7 @@ Item {
 
               width: itemsListCol.width
               height: 36
-              radius: Style.radius.small
+              radius: Style.cornerRadius
               color: manageRoot.surfaceAlt
               visible: matchesSearch
 
@@ -400,8 +503,8 @@ Item {
                   text: "\uf2d0" // nf-fa-window_maximize
                   textFormat: Text.PlainText
                   renderType: Text.NativeRendering
-                  font.family: Style.fontFace.icon
-                  font.pixelSize: Style.fontSize.small
+                  font.family: Style.font.family
+                  font.pixelSize: Style.font.bodySmall
                   color: Color.accent
                   anchors.verticalCenter: parent.verticalCenter
                 }
@@ -410,7 +513,8 @@ Item {
                   text: modelData.title || TrayModel.friendlyDisplayName(parent.parent.sId)
                   textFormat: Text.PlainText
                   renderType: Text.NativeRendering
-                  font.pixelSize: Style.fontSize.small
+                  font.family: Style.font.family
+                  font.pixelSize: Style.font.bodySmall
                   color: Color.foreground
                   anchors.verticalCenter: parent.verticalCenter
                   width: 140
@@ -435,8 +539,8 @@ Item {
                       text: "\uf08d" // nf-fa-thumb_tack
                       textFormat: Text.PlainText
                       renderType: Text.NativeRendering
-                      font.family: Style.fontFace.icon
-                      font.pixelSize: Style.fontSize.tiny
+                      font.family: Style.font.family
+                      font.pixelSize: Style.font.caption
                       color: parent.parent.parent.parent.isPinned ? Color.background : manageRoot.mutedColor
                     }
                     MouseArea {
@@ -457,8 +561,8 @@ Item {
                       text: parent.parent.parent.parent.isHidden ? "\uf070" : "\uf06e" // eye-slash / eye
                       textFormat: Text.PlainText
                       renderType: Text.NativeRendering
-                      font.family: Style.fontFace.icon
-                      font.pixelSize: Style.fontSize.tiny
+                      font.family: Style.font.family
+                      font.pixelSize: Style.font.caption
                       color: parent.parent.parent.parent.isHidden ? Color.background : manageRoot.mutedColor
                     }
                     MouseArea {
@@ -486,7 +590,8 @@ Item {
         text: "DISPLAY MODE"
         textFormat: Text.PlainText
         renderType: Text.NativeRendering
-        font.pixelSize: Style.fontSize.tiny
+        font.family: Style.font.family
+        font.pixelSize: Style.font.caption
         font.bold: true
         color: manageRoot.mutedColor
       }
@@ -507,7 +612,7 @@ Item {
 
             width: (contentColumn.width - 12) / 4
             height: 28
-            radius: Style.radius.small
+            radius: Style.cornerRadius
             color: isSelected ? Color.accent : manageRoot.surfaceAlt
 
             Text {
@@ -515,7 +620,8 @@ Item {
               text: parent.parent.modeLabels[parent.index]
               textFormat: Text.PlainText
               renderType: Text.NativeRendering
-              font.pixelSize: Style.fontSize.small
+              font.family: Style.font.family
+              font.pixelSize: Style.font.bodySmall
               color: parent.isSelected ? Color.background : Color.foreground
             }
 
@@ -537,7 +643,8 @@ Item {
         text: "OPEN TRIGGER"
         textFormat: Text.PlainText
         renderType: Text.NativeRendering
-        font.pixelSize: Style.fontSize.tiny
+        font.family: Style.font.family
+        font.pixelSize: Style.font.caption
         font.bold: true
         color: manageRoot.mutedColor
       }
@@ -549,7 +656,7 @@ Item {
         Rectangle {
           width: (contentColumn.width - 6) / 2
           height: 28
-          radius: Style.radius.small
+          radius: Style.cornerRadius
           readonly property bool isSelected: (manageRoot.currentSettings.trigger || "click") === "click"
           color: isSelected ? Color.accent : manageRoot.surfaceAlt
 
@@ -558,7 +665,8 @@ Item {
             text: "On Click"
             textFormat: Text.PlainText
             renderType: Text.NativeRendering
-            font.pixelSize: Style.fontSize.small
+            font.family: Style.font.family
+            font.pixelSize: Style.font.bodySmall
             color: parent.isSelected ? Color.background : Color.foreground
           }
 
@@ -576,7 +684,7 @@ Item {
         Rectangle {
           width: (contentColumn.width - 6) / 2
           height: 28
-          radius: Style.radius.small
+          radius: Style.cornerRadius
           readonly property bool isSelected: manageRoot.currentSettings.trigger === "hover"
           color: isSelected ? Color.accent : manageRoot.surfaceAlt
 
@@ -585,7 +693,8 @@ Item {
             text: "On Hover"
             textFormat: Text.PlainText
             renderType: Text.NativeRendering
-            font.pixelSize: Style.fontSize.small
+            font.family: Style.font.family
+            font.pixelSize: Style.font.bodySmall
             color: parent.isSelected ? Color.background : Color.foreground
           }
 
@@ -606,7 +715,8 @@ Item {
         text: "INDICATOR ICON"
         textFormat: Text.PlainText
         renderType: Text.NativeRendering
-        font.pixelSize: Style.fontSize.tiny
+        font.family: Style.font.family
+        font.pixelSize: Style.font.caption
         font.bold: true
         color: manageRoot.mutedColor
       }
@@ -627,7 +737,7 @@ Item {
 
             width: (contentColumn.width - 16) / 5
             height: 28
-            radius: Style.radius.small
+            radius: Style.cornerRadius
             color: isSelected ? Color.accent : manageRoot.surfaceAlt
 
             Text {
@@ -635,7 +745,8 @@ Item {
               text: parent.parent.iconLabels[parent.index]
               textFormat: Text.PlainText
               renderType: Text.NativeRendering
-              font.pixelSize: Style.fontSize.tiny
+              font.family: Style.font.family
+              font.pixelSize: Style.font.caption
               color: parent.isSelected ? Color.background : Color.foreground
             }
 
@@ -671,8 +782,8 @@ Item {
             text: "\uf00c" // nf-fa-check
             textFormat: Text.PlainText
             renderType: Text.NativeRendering
-            font.family: Style.fontFace.icon
-            font.pixelSize: Style.fontSize.tiny
+            font.family: Style.font.family
+            font.pixelSize: Style.font.caption
             color: Color.background
             visible: parent.checked
           }
@@ -692,7 +803,8 @@ Item {
           text: "Deduplicate apps with native widget (e.g. Dropbox)"
           textFormat: Text.PlainText
           renderType: Text.NativeRendering
-          font.pixelSize: Style.fontSize.small
+          font.family: Style.font.family
+          font.pixelSize: Style.font.bodySmall
           color: Color.foreground
           anchors.verticalCenter: parent.verticalCenter
         }

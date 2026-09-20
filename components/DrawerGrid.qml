@@ -34,8 +34,8 @@ Item {
       Rectangle {
         width: parent.width - 70
         height: 28
-        radius: Style.radius.small
-        color: Color.bar.buttonHover
+        radius: Style.cornerRadius
+        color: Style.hoverFill
         border.color: searchInput.activeFocus ? Color.accent : "transparent"
         border.width: 1
 
@@ -49,9 +49,9 @@ Item {
             text: "\uf002" // nf-fa-search
             textFormat: Text.PlainText
             renderType: Text.NativeRendering
-            font.family: Style.fontFace.icon
-            font.pixelSize: Style.fontSize.tiny
-            color: Color.bar.buttonForeground
+            font.family: Style.font.family
+            font.pixelSize: Style.font.caption
+            color: Color.muted
             anchors.verticalCenter: parent.verticalCenter
           }
 
@@ -61,7 +61,7 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             text: drawerGridRoot.searchQuery
             color: Color.foreground
-            font.pixelSize: Style.fontSize.small
+            font.pixelSize: Style.font.bodySmall
             maximumLength: 32
             selectByMouse: true
             onTextChanged: drawerGridRoot.searchQuery = text
@@ -70,8 +70,8 @@ Item {
               text: "Filter..."
               textFormat: Text.PlainText
               renderType: Text.NativeRendering
-              color: Color.bar.buttonForeground
-              font.pixelSize: Style.fontSize.small
+              color: Color.muted
+              font.pixelSize: Style.font.bodySmall
               visible: !searchInput.text && !searchInput.activeFocus
               anchors.verticalCenter: parent.verticalCenter
             }
@@ -83,17 +83,17 @@ Item {
       Rectangle {
         width: 28
         height: 28
-        radius: Style.radius.small
-        color: Color.bar.buttonHover
+        radius: Style.cornerRadius
+        color: Style.hoverFill
 
         Text {
           anchors.centerIn: parent
           text: drawerGridRoot.viewMode === "grid" ? "\uf00b" : "\uf009" // list vs th
           textFormat: Text.PlainText
           renderType: Text.NativeRendering
-          font.family: Style.fontFace.icon
-          font.pixelSize: Style.fontSize.small
-          color: Color.bar.buttonForeground
+          font.family: Style.font.family
+          font.pixelSize: Style.font.bodySmall
+          color: Color.foreground
         }
 
         MouseArea {
@@ -107,17 +107,17 @@ Item {
       Rectangle {
         width: 28
         height: 28
-        radius: Style.radius.small
-        color: Color.bar.buttonHover
+        radius: Style.cornerRadius
+        color: Style.hoverFill
 
         Text {
           anchors.centerIn: parent
           text: "\uf013" // nf-fa-cog
           textFormat: Text.PlainText
           renderType: Text.NativeRendering
-          font.family: Style.fontFace.icon
-          font.pixelSize: Style.fontSize.small
-          color: Color.bar.buttonForeground
+          font.family: Style.font.family
+          font.pixelSize: Style.font.bodySmall
+          color: Color.foreground
         }
 
         MouseArea {
@@ -139,6 +139,18 @@ Item {
         id: contentContainer
         width: parent.width
         implicitHeight: drawerGridRoot.viewMode === "grid" ? flowView.implicitHeight : listViewCol.implicitHeight
+
+        // Empty state message when no items are tucked in
+        Text {
+          anchors.centerIn: parent
+          text: "Drawer is empty.\nDrag bar widgets here or click settings to manage."
+          textFormat: Text.PlainText
+          renderType: Text.NativeRendering
+          horizontalAlignment: Text.AlignHCenter
+          font.pixelSize: Style.font.bodySmall
+          color: Color.muted
+          visible: drawerGridRoot.hostedWidgets.length === 0 && drawerGridRoot.sniItems.length === 0
+        }
 
         // 1. GRID VIEW
         Flow {
@@ -213,8 +225,8 @@ Item {
               visible: matches
               width: listViewCol.width
               height: 36
-              radius: Style.radius.small
-              color: Color.bar.buttonHover
+              radius: Style.cornerRadius
+              color: Style.hoverFill
 
               Row {
                 anchors.fill: parent
@@ -232,7 +244,7 @@ Item {
                   text: TrayModel.friendlyDisplayName(parent.parent.wId)
                   textFormat: Text.PlainText
                   renderType: Text.NativeRendering
-                  font.pixelSize: Style.fontSize.small
+                  font.pixelSize: Style.font.bodySmall
                   color: Color.foreground
                   anchors.verticalCenter: parent.verticalCenter
                   elide: Text.ElideRight
@@ -254,8 +266,8 @@ Item {
               visible: matches
               width: listViewCol.width
               height: 36
-              radius: Style.radius.small
-              color: Color.bar.buttonHover
+              radius: Style.cornerRadius
+              color: Style.hoverFill
 
               Row {
                 anchors.fill: parent
@@ -276,7 +288,7 @@ Item {
                   text: modelData.title || TrayModel.friendlyDisplayName(parent.parent.sId)
                   textFormat: Text.PlainText
                   renderType: Text.NativeRendering
-                  font.pixelSize: Style.fontSize.small
+                  font.pixelSize: Style.font.bodySmall
                   color: Color.foreground
                   anchors.verticalCenter: parent.verticalCenter
                   elide: Text.ElideRight
