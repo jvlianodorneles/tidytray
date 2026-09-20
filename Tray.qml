@@ -3,6 +3,7 @@ import QtQuick.Controls
 import QtQuick.Effects
 import Quickshell
 import Quickshell.Io
+import Quickshell.Wayland
 import Quickshell.Services.SystemTray
 import qs.Commons
 import qs.Ui
@@ -168,10 +169,14 @@ BarWidget {
   // ---------------------------------------------------------------------------
   // Host Bar Adoption (Access to real bar for drag-and-drop & full shell config)
   // ---------------------------------------------------------------------------
+  readonly property var barWindow: root.QsWindow ? root.QsWindow.window : null
+  readonly property bool facadeBar: bar !== null && bar !== undefined
+    && !("barWidgetRegistry" in bar)
+
   property var hostBar: root.bar
 
   function isRealHostBar(b) {
-    return b !== null && b !== undefined && typeof b === "object" && "barDragSource" in b && "barWidgetRegistry" in b
+    return b !== null && b !== undefined && typeof b === "object" && "barWidgetRegistry" in b
   }
 
   function findHostBar(item) {
@@ -187,39 +192,71 @@ BarWidget {
     return null
   }
 
-  function resolveHostBar() {
-    if (isRealHostBar(hostBar)) return
+  function setBar(b) {
+    if (!b) return
+    root.hostBar = b
+    if (root.facadeBar) {
+      root.bar = b
+    }
+  }
+
+  function adoptHostBar() {
+    if (!facadeBar && isRealHostBar(hostBar)) return
     var p = root.parent
     while (p) {
       if (isRealHostBar(p)) {
-        hostBar = p
+        setBar(p)
+        return
+      }
+      if ("bar" in p && isRealHostBar(p.bar)) {
+        setBar(p.bar)
         return
       }
       p = p.parent
     }
-    var bw = (root.bar && root.bar.barWindow) ? root.bar.barWindow : null
-    if (!bw && root.QsWindow) bw = root.QsWindow.window
+    var bw = root.barWindow
+    if (!bw && root.bar && root.bar.barWindow) bw = root.bar.barWindow
     if (bw && bw.contentItem) {
       var found = findHostBar(bw.contentItem)
       if (found) {
-        hostBar = found
+        setBar(found)
         return
       }
     }
   }
 
-  Component.onCompleted: resolveHostBar()
-  onParentChanged: resolveHostBar()
-  onBarChanged: resolveHostBar()
+  Component.onCompleted: {
+    adoptAttempts = 0
+    adoptHostBar()
+    var saved = TrayModel.getPersistedManageState()
+    if (saved && saved.open) {
+      TrayModel.clearPersistedManageState()
+      Qt.callLater(function() {
+        root.openManage()
+        if (manageComp && saved.tab) {
+          manageComp.activeTab = saved.tab
+        }
+      })
+    }
+  }
+
+  onParentChanged: {
+    adoptAttempts = 0
+    Qt.callLater(adoptHostBar)
+  }
+  onBarChanged: {
+    adoptAttempts = 0
+    Qt.callLater(adoptHostBar)
+  }
 
   property int adoptAttempts: 0
   Timer {
     interval: 200
     repeat: true
-    running: (!root.hostBar || !("barDragSource" in root.hostBar)) && root.adoptAttempts < 40
+    running: root.facadeBar && root.adoptAttempts < 40
     onTriggered: {
       root.adoptAttempts += 1
-      root.resolveHostBar()
+      root.adoptHostBar()
     }
   }
 
@@ -266,6 +303,9 @@ BarWidget {
 
   function captureWidget(sourceId) {
     if (!sourceId) return
+    if (root.manageOpen) {
+      TrayModel.setPersistedManageState(true, manageComp ? manageComp.activeTab : "items")
+    }
     var shellObj = getRealShell()
     var handled = false
     if (shellObj) {
@@ -284,6 +324,9 @@ BarWidget {
 
   function releaseWidget(widgetId) {
     if (!widgetId) return
+    if (root.manageOpen) {
+      TrayModel.setPersistedManageState(true, manageComp ? manageComp.activeTab : "items")
+    }
     var shellObj = getRealShell()
     var handled = false
     if (shellObj) {
@@ -301,6 +344,9 @@ BarWidget {
   }
 
   function reorderHostedWidget(fromIndex, toIndex) {
+    if (root.manageOpen) {
+      TrayModel.setPersistedManageState(true, manageComp ? manageComp.activeTab : "items")
+    }
     var shellObj = getRealShell()
     var handled = false
     if (shellObj) {
@@ -462,7 +508,7 @@ BarWidget {
         Repeater {
           model: root.pinnedHostedWidgets
           delegate: HostedWidget {
-            bar: root.bar
+            bar: (root.hostBar || root.bar)
             modelData: modelData
             vertical: root.vertical
           }
@@ -471,7 +517,7 @@ BarWidget {
         Repeater {
           model: root.pinnedSniItems
           delegate: SnItemDelegate {
-            bar: root.bar
+            bar: (root.hostBar || root.bar)
             modelData: modelData
             vertical: root.vertical
             onRequestMenu: function(item, target, mouse) {
@@ -492,7 +538,7 @@ BarWidget {
       // 3. Indicator Button (Chevron / Dot / Plus)
       IndicatorButton {
         id: indicatorBtn
-        bar: root.bar
+        bar: (root.hostBar || root.bar)
         dragOver: root.dragOver
         expanded: root.expanded
         indicatorIcon: root.indicatorIcon
@@ -528,7 +574,7 @@ BarWidget {
           Repeater {
             model: root.drawerHostedWidgets
             delegate: HostedWidget {
-              bar: root.bar
+              bar: (root.hostBar || root.bar)
               modelData: modelData
               vertical: root.vertical
             }
@@ -537,7 +583,7 @@ BarWidget {
           Repeater {
             model: root.drawerSniItems
             delegate: SnItemDelegate {
-              bar: root.bar
+              bar: (root.hostBar || root.bar)
               modelData: modelData
               vertical: root.vertical
               onRequestMenu: function(item, target, mouse) {
@@ -557,7 +603,7 @@ BarWidget {
     id: dropdownPanel
     anchorItem: indicatorBtn.visible ? indicatorBtn : root
     owner: dropdownController
-    bar: root.bar
+    bar: (root.hostBar || root.bar)
     open: root.displayMode === "dropdown" && root.expanded && !root.manageOpen
     focusTarget: dropdownKeyCatcher
 
@@ -576,7 +622,7 @@ BarWidget {
       DropdownStrip {
         id: dropdownStrip
         anchors.fill: parent
-        bar: root.bar
+        bar: (root.hostBar || root.bar)
         hostedWidgets: root.drawerHostedWidgets
         sniItems: root.drawerSniItems
         vertical: root.vertical
@@ -594,7 +640,7 @@ BarWidget {
     id: drawerGridPanel
     anchorItem: indicatorBtn.visible ? indicatorBtn : root
     owner: drawerController
-    bar: root.bar
+    bar: (root.hostBar || root.bar)
     open: root.displayMode === "drawer" && root.expanded && !root.manageOpen
     focusTarget: drawerKeyCatcher
 
@@ -613,7 +659,7 @@ BarWidget {
       DrawerGrid {
         id: drawerGridComp
         anchors.fill: parent
-        bar: root.bar
+        bar: (root.hostBar || root.bar)
         hostedWidgets: root.drawerHostedWidgets
         sniItems: root.drawerSniItems
         onOpenSettingsRequested: root.openManage()
@@ -641,7 +687,7 @@ BarWidget {
     id: managePopup
     anchorItem: indicatorBtn.visible ? indicatorBtn : root
     owner: manageController
-    bar: root.bar
+    bar: (root.hostBar || root.bar)
     open: root.manageOpen
     focusTarget: manageKeyCatcher
 
@@ -663,7 +709,7 @@ BarWidget {
       ManagePanel {
         id: manageComp
         anchors.fill: parent
-        bar: root.bar
+        bar: (root.hostBar || root.bar)
         currentSettings: root.activeSettings
         hostedWidgets: root.configuredWidgets
         sniItems: root.allSniItems
@@ -759,7 +805,7 @@ BarWidget {
     id: trayMenuPanel
     anchorItem: root.activeTrayAnchor || root
     owner: menuController
-    bar: root.bar
+    bar: (root.hostBar || root.bar)
     open: root.trayMenuOpen
     focusTarget: menuKeyCatcher
 

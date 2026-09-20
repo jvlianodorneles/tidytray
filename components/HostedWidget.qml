@@ -14,16 +14,23 @@ Item {
 
   signal dragStarted(var entry, var mouse)
 
+  readonly property var effectiveBar: {
+    if (hostedRoot.bar && "barWidgetRegistry" in hostedRoot.bar) return hostedRoot.bar
+    if (typeof root !== "undefined" && root && root.hostBar && "barWidgetRegistry" in root.hostBar) return root.hostBar
+    if (typeof root !== "undefined" && root && root.bar && "barWidgetRegistry" in root.bar) return root.bar
+    return hostedRoot.bar
+  }
+
   readonly property var entry: modelData && modelData.entry ? modelData.entry : (modelData || ({}))
   readonly property string widgetId: TrayModel.entryId(entry)
   readonly property var widgetSettings: TrayModel.entrySettings(entry)
 
-  readonly property string customType: hostedRoot.bar && typeof hostedRoot.bar.customModuleType === "function"
-    ? String(hostedRoot.bar.customModuleType(entry) || "") : ""
+  readonly property string customType: effectiveBar && typeof effectiveBar.customModuleType === "function"
+    ? String(effectiveBar.customModuleType(entry) || "") : ""
 
   readonly property var registryComponent: {
     if (customType) return null
-    var registry = hostedRoot.bar ? hostedRoot.bar.barWidgetRegistry : null
+    var registry = effectiveBar ? effectiveBar.barWidgetRegistry : null
     if (!registry) return null
     var rev = registry.revision
     void rev
@@ -38,11 +45,14 @@ Item {
     return null
   }
 
+  readonly property int fallbackSize: Style.bar.iconSlot
+  readonly property int defaultBarSize: effectiveBar ? effectiveBar.barSize : Style.bar.sizeHorizontal
+
   implicitWidth: activeItem && activeItem.visible
-    ? (hostedRoot.vertical ? (hostedRoot.bar ? hostedRoot.bar.barSize : Style.bar.sizeHorizontal) : activeItem.implicitWidth)
+    ? (hostedRoot.vertical ? defaultBarSize : Math.max(fallbackSize, activeItem.implicitWidth || 0))
     : 0
   implicitHeight: activeItem && activeItem.visible
-    ? (hostedRoot.vertical ? activeItem.implicitHeight : (hostedRoot.bar ? hostedRoot.bar.barSize : Style.bar.sizeHorizontal))
+    ? (hostedRoot.vertical ? Math.max(fallbackSize, activeItem.implicitHeight || 0) : defaultBarSize)
     : 0
   width: implicitWidth
   height: implicitHeight
@@ -54,7 +64,8 @@ Item {
   function injectProps() {
     var target = activeItem
     if (!target) return
-    if ("bar" in target) target.bar = hostedRoot.bar
+    if ("bar" in target) target.bar = effectiveBar
+    if ("entry" in target) target.entry = hostedRoot.entry
     if ("moduleName" in target) target.moduleName = widgetId
     if ("settings" in target) target.settings = widgetSettings
   }
@@ -73,8 +84,8 @@ Item {
   Loader {
     id: qmlLoader
     active: hostedRoot.customType === "qml"
-    source: active && hostedRoot.bar && typeof hostedRoot.bar.customModuleSource === "function"
-      ? hostedRoot.bar.customModuleSource(entry) : ""
+    source: active && effectiveBar && typeof effectiveBar.customModuleSource === "function"
+      ? effectiveBar.customModuleSource(entry) : ""
     anchors.fill: parent
     onLoaded: {
       hostedRoot.injectProps()
@@ -85,8 +96,8 @@ Item {
   Loader {
     id: commandLoader
     active: hostedRoot.customType === "command"
-    sourceComponent: active && hostedRoot.bar && typeof hostedRoot.bar.customModuleComponent === "function"
-      ? hostedRoot.bar.customModuleComponent(entry) : null
+    sourceComponent: active && effectiveBar && typeof effectiveBar.customModuleComponent === "function"
+      ? effectiveBar.customModuleComponent(entry) : null
     anchors.fill: parent
     onLoaded: {
       hostedRoot.injectProps()
@@ -94,34 +105,16 @@ Item {
     }
   }
 
-  // Mouse detector for dragging widgets out of the drawer
-  MouseArea {
-    id: dragDetector
-    anchors.fill: parent
+  // Pointer drag handler: lets clicks and interactions reach the hosted widget directly
+  DragHandler {
+    id: cellDrag
+    target: null
     acceptedButtons: Qt.LeftButton
-    propagateComposedEvents: true
-    preventStealing: false
+    dragThreshold: Style.space(4)
+    grabPermissions: PointerHandler.CanTakeOverFromAnything
 
-    property real startX: 0
-    property real startY: 0
-    property bool dragFired: false
-
-    onPressed: function(mouse) {
-      startX = mouse.x
-      startY = mouse.y
-      dragFired = false
-      mouse.accepted = false // Allow activeItem to receive clicks
-    }
-
-    onPositionChanged: function(mouse) {
-      if (!dragFired && pressed) {
-        var dx = mouse.x - startX
-        var dy = mouse.y - startY
-        if ((dx * dx + dy * dy) > 64) {
-          dragFired = true
-          hostedRoot.dragStarted(hostedRoot.entry, mouse)
-        }
-      }
+    onActiveChanged: {
+      if (active) hostedRoot.dragStarted(hostedRoot.entry, null)
     }
   }
 }

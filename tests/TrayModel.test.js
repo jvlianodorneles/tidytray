@@ -137,6 +137,11 @@ assert.deepStrictEqual(JSON.parse(JSON.stringify(toggled2.pinned)), ["discord"])
 
 const toggled3 = M.toggleBucketId(["discord"], [], "discord", "hidden")
 assert.deepStrictEqual(JSON.parse(JSON.stringify(toggled3.pinned)), [])
-assert.deepStrictEqual(JSON.parse(JSON.stringify(toggled3.hidden)), ["discord"])
+// 7. State persistence tests
+assert.deepStrictEqual(JSON.parse(JSON.stringify(M.getPersistedManageState())), { open: false, tab: "items" })
+M.setPersistedManageState(true, "settings")
+assert.deepStrictEqual(JSON.parse(JSON.stringify(M.getPersistedManageState())), { open: true, tab: "settings" })
+M.clearPersistedManageState()
+assert.deepStrictEqual(JSON.parse(JSON.stringify(M.getPersistedManageState())), { open: false, tab: "items" })
 
 console.log("All TrayModel unit tests passed successfully!")

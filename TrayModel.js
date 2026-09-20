@@ -357,6 +357,21 @@ function toggleBucketId(pinnedList, hiddenList, id, targetBucket) {
   return { pinned: p, hidden: h }
 }
 
+// State persistence across bar reloads (for seamless config mutations)
+var _persistedManageState = { open: false, tab: "items" }
+
+function setPersistedManageState(open, tab) {
+  _persistedManageState = { open: !!open, tab: tab || "items" }
+}
+
+function getPersistedManageState() {
+  return _persistedManageState
+}
+
+function clearPersistedManageState() {
+  _persistedManageState = { open: false, tab: "items" }
+}
+
 // Catalog helpers: parse bar widgets from manifests
 function catalogEntryFromManifest(sourceDir, manifest) {
   if (!manifest || typeof manifest !== "object") return null
@@ -420,6 +435,9 @@ if (typeof module !== "undefined" && module.exports) {
     reorderTrayWidgets: reorderTrayWidgets,
     toggleBucketId: toggleBucketId,
     catalogEntryFromManifest: catalogEntryFromManifest,
-    friendlyDisplayName: friendlyDisplayName
+    friendlyDisplayName: friendlyDisplayName,
+    setPersistedManageState: setPersistedManageState,
+    getPersistedManageState: getPersistedManageState,
+    clearPersistedManageState: clearPersistedManageState
   }
 }
