@@ -126,14 +126,55 @@ BarWidget {
         var popoutInfo = null
         if (drawerBarProxy && drawerBarProxy.activePopout) {
           var ap = drawerBarProxy.activePopout
+          var loaderItem = null
+          if (ap.data) {
+            for (var m = 0; m < ap.data.length; m++) {
+              var obj = ap.data[m]
+              if (obj && "item" in obj && obj.item) {
+                loaderItem = obj.item
+              }
+            }
+          }
+          var loaderItemData = []
+          var kPanel = null
+          if (loaderItem && loaderItem.data) {
+            for (var n = 0; n < loaderItem.data.length; n++) {
+              var lo = loaderItem.data[n]
+              loaderItemData.push(String(lo))
+              if (lo && "cardOrigin" in lo) {
+                kPanel = lo
+              }
+            }
+          }
           popoutInfo = {
             owner: String(ap),
-            anchorItem: ("anchorItem" in ap) ? String(ap.anchorItem) : null,
-            anchorWindow: ("anchorItem" in ap && ap.anchorItem && ap.anchorItem.QsWindow) ? String(ap.anchorItem.QsWindow.window) : null,
-            contentWidth: ("contentWidth" in ap) ? ap.contentWidth : null,
-            contentHeight: ("contentHeight" in ap) ? ap.contentHeight : null,
-            cardOrigin: ("cardOrigin" in ap) ? ap.cardOrigin : null,
-            barH: ("barH" in ap) ? ap.barH : null
+            loaderItem: String(loaderItem),
+            loaderItemAnchor: loaderItem ? String(loaderItem.anchorItem) : null,
+            loaderItemData: loaderItemData,
+            kPanel: String(kPanel),
+            kPanelAnchor: kPanel ? String(kPanel.anchorItem) : null,
+            kPanelBarH: kPanel ? kPanel.barH : null,
+            kPanelCardOrigin: kPanel ? kPanel.cardOrigin : null
+          }
+        }
+        var drawerPanelInfo = null
+        if (drawerGridPanel) {
+          drawerPanelInfo = {
+            open: drawerGridPanel.open,
+            visible: drawerGridPanel.visible,
+            anchorItem: String(drawerGridPanel.anchorItem),
+            anchorWindow: String(drawerGridPanel.anchorWindow),
+            screen: drawerGridPanel.screen ? String(drawerGridPanel.screen.name) : null,
+            barH: drawerGridPanel.barH,
+            barW: drawerGridPanel.barW,
+            screenW: drawerGridPanel.screenW,
+            screenH: drawerGridPanel.screenH,
+            cardOrigin: drawerGridPanel.cardOrigin,
+            contentWidth: drawerGridPanel.contentWidth,
+            contentHeight: drawerGridPanel.contentHeight,
+            barPos: drawerGridPanel.barPos,
+            gap: drawerGridPanel.gap,
+            availableCardHeight: drawerGridPanel.availableCardHeight
           }
         }
         return JSON.stringify({
@@ -147,6 +188,7 @@ BarWidget {
           dropdownVisible: dropdownPanel ? dropdownPanel.visible : false,
           drawerOpen: drawerGridPanel ? drawerGridPanel.open : false,
           drawerVisible: drawerGridPanel ? drawerGridPanel.visible : false,
+          drawerPanelInfo: drawerPanelInfo,
           drawerTiles: drawerTiles,
           dropdownTiles: dropdownTiles,
           rowKids: rowKids,
@@ -205,38 +247,41 @@ BarWidget {
       try {
         if ("anchorItem" in obj && obj.anchorItem !== barAnchor) {
           obj.anchorItem = barAnchor
+          try {
+            obj.anchorItemChanged.connect(function() {
+              if (barAnchor && obj.anchorItem !== barAnchor) {
+                obj.anchorItem = barAnchor
+              }
+            })
+          } catch (e) {}
         }
-      } catch (e) {}
-
-      try {
-        if (obj.panelLoader && obj.panelLoader.item) {
-          fixAnchors(obj.panelLoader.item)
+        if (obj.panel && "anchorItem" in obj.panel && obj.panel.anchorItem !== barAnchor) {
+          obj.panel.anchorItem = barAnchor
         }
-      } catch (e) {}
-      try {
-        if (obj.panel) {
-          fixAnchors(obj.panel)
+        if (obj.popup && "anchorItem" in obj.popup && obj.popup.anchorItem !== barAnchor) {
+          obj.popup.anchorItem = barAnchor
         }
-      } catch (e) {}
-      try {
-        if (obj.popup) {
-          fixAnchors(obj.popup)
-        }
-      } catch (e) {}
-
-      try {
-        if (obj.children) {
-          for (var i = 0; i < obj.children.length; i++) {
-            var child = obj.children[i]
-            if (!child) continue
-            if ("anchorItem" in child && child.anchorItem !== barAnchor) {
-              child.anchorItem = barAnchor
+        if (obj.data) {
+          for (var i = 0; i < obj.data.length; i++) {
+            var d = obj.data[i]
+            if (!d) continue
+            if ("anchorItem" in d && d.anchorItem !== barAnchor) {
+              d.anchorItem = barAnchor
+              try {
+                d.anchorItemChanged.connect(function() {
+                  if (barAnchor && d.anchorItem !== barAnchor) {
+                    d.anchorItem = barAnchor
+                  }
+                })
+              } catch (e) {}
             }
-            if (child.item) {
-              fixAnchors(child.item)
-            }
-            if (child.children && child.children.length > 0) {
-              fixAnchors(child)
+            if ("item" in d) {
+              if (d.item) fixAnchors(d.item)
+              try {
+                d.itemChanged.connect(function() {
+                  if (d.item) drawerBarProxy.fixAnchors(d.item)
+                })
+              } catch (e) {}
             }
           }
         }
@@ -251,23 +296,17 @@ BarWidget {
         else if ("close" in activePopout) activePopout.close()
       }
       activePopout = owner
-      if (hostBar && typeof hostBar.requestPopout === "function") {
-        hostBar.requestPopout(owner)
-      }
-      root.expanded = false
     }
 
     function releasePopout(owner) {
       if (activePopout === owner) activePopout = null
-      if (hostBar && typeof hostBar.releasePopout === "function") {
-        hostBar.releasePopout(owner)
-      }
     }
 
     function closeChildPopouts() {
       if (activePopout) {
-        if ("close" in activePopout) activePopout.close()
+        var p = activePopout
         activePopout = null
+        if ("close" in p) p.close()
       }
     }
 

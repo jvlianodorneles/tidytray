@@ -60,83 +60,55 @@ Item {
   visible: activeItem !== null
 
   onActiveItemChanged: {
+    injectProps()
     Qt.callLater(injectProps)
-    Qt.callLater(function() { attachAnchorWatcher(activeItem) })
   }
-  onEffectiveBarChanged: Qt.callLater(injectProps)
+  onEffectiveBarChanged: injectProps()
   onWidgetSettingsChanged: injectProps()
+  onBarAnchorChanged: hookTarget(activeItem)
+
+  function hookTarget(target) {
+    if (!target || !barAnchor) return
+    try {
+      if ("anchorItem" in target && target.anchorItem !== barAnchor) {
+        target.anchorItem = barAnchor
+        try {
+          target.anchorItemChanged.connect(function() {
+            if (hostedRoot.barAnchor && target.anchorItem !== hostedRoot.barAnchor) {
+              target.anchorItem = hostedRoot.barAnchor
+            }
+          })
+        } catch (e) {}
+      }
+      if (target.data) {
+        for (var i = 0; i < target.data.length; i++) {
+          var d = target.data[i]
+          if (!d) continue
+          if ("anchorItem" in d && d.anchorItem !== barAnchor) {
+            d.anchorItem = barAnchor
+            try {
+              d.anchorItemChanged.connect(function() {
+                if (hostedRoot.barAnchor && d.anchorItem !== hostedRoot.barAnchor) {
+                  d.anchorItem = hostedRoot.barAnchor
+                }
+              })
+            } catch (e) {}
+          }
+          if ("item" in d) {
+            if (d.item) hookTarget(d.item)
+            try {
+              d.itemChanged.connect(function() {
+                if (d.item) hostedRoot.hookTarget(d.item)
+              })
+            } catch (e) {}
+          }
+        }
+      }
+    } catch (e) {}
+  }
 
   function fixAnchors(obj) {
-    if (!obj || !barAnchor) return
-    try {
-      if ("anchorItem" in obj && obj.anchorItem !== barAnchor) {
-        obj.anchorItem = barAnchor
-      }
-    } catch (e) {}
-
-    try {
-      if (obj.panelLoader && obj.panelLoader.item) {
-        fixAnchors(obj.panelLoader.item)
-      }
-    } catch (e) {}
-    try {
-      if (obj.panel) {
-        fixAnchors(obj.panel)
-      }
-    } catch (e) {}
-    try {
-      if (obj.popup) {
-        fixAnchors(obj.popup)
-      }
-    } catch (e) {}
-
-    try {
-      if (obj.children) {
-        for (var i = 0; i < obj.children.length; i++) {
-          var child = obj.children[i]
-          if (!child) continue
-          if ("anchorItem" in child && child.anchorItem !== barAnchor) {
-            child.anchorItem = barAnchor
-          }
-          if (child.item) {
-            fixAnchors(child.item)
-          }
-          if (child.children && child.children.length > 0) {
-            fixAnchors(child)
-          }
-        }
-      }
-    } catch (e) {}
-  }
-
-  function attachAnchorWatcher(target) {
-    if (!target || !barAnchor) return
-    fixAnchors(target)
-
-    try {
-      if ("openedChanged" in target) {
-        target.openedChanged.connect(function() {
-          if (target.opened) {
-            fixAnchors(target)
-            Qt.callLater(function() { fixAnchors(target) })
-          }
-        })
-      }
-    } catch (e) {}
-
-    try {
-      if (target.children) {
-        for (var i = 0; i < target.children.length; i++) {
-          var child = target.children[i]
-          if (!child) continue
-          if ("itemChanged" in child) {
-            child.itemChanged.connect(function() {
-              Qt.callLater(function() { fixAnchors(target) })
-            })
-          }
-        }
-      }
-    } catch (e) {}
+    hookTarget(obj)
   }
 
   function injectProps() {
