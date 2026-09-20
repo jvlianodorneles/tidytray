@@ -8,9 +8,11 @@ Item {
   property bool active: false
   property bool vertical: false
 
-  implicitWidth: vertical ? Style.bar.sizeHorizontal : 3
-  implicitHeight: vertical ? 3 : Style.bar.sizeHorizontal
-  visible: opacity > 0
+  implicitWidth: active ? (vertical ? Style.bar.sizeHorizontal : 3) : 0
+  implicitHeight: active ? (vertical ? 3 : Style.bar.sizeHorizontal) : 0
+  width: implicitWidth
+  height: implicitHeight
+  visible: active || opacity > 0
 
   opacity: active ? 1.0 : 0.0
 

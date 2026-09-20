@@ -45,31 +45,55 @@ BarWidget {
   IpcHandler {
     target: "tidytray"
     function status(): string {
-      var kids = []
-      for (var i = 0; i < inlineContentRow.children.length; i++) {
-        var c = inlineContentRow.children[i]
-        kids.push({
-          type: String(c),
-          widgetId: c.widgetId,
-          effectiveBar: String(c.effectiveBar),
-          registryComponent: String(c.registryComponent),
-          activeItem: String(c.activeItem),
-          modelData: c.modelData ? (c.modelData.id || (c.modelData.entry ? c.modelData.entry.id : null) || c.modelData) : null,
-          status: c.modelData && "status" in c.modelData ? c.modelData.status : null,
-          isVisible: c.isVisible,
-          implicitWidth: c.implicitWidth,
-          implicitHeight: c.implicitHeight,
-          visible: c.visible
+      try {
+        var kids = []
+        for (var i = 0; i < inlineContentRow.children.length; i++) {
+          var c = inlineContentRow.children[i]
+          kids.push({
+            type: String(c),
+            widgetId: c.widgetId,
+            effectiveBar: String(c.effectiveBar),
+            registryComponent: String(c.registryComponent),
+            activeItem: String(c.activeItem),
+            modelData: c.modelData ? (c.modelData.id || (c.modelData.entry ? c.modelData.entry.id : null) || c.modelData) : null,
+            status: c.modelData && "status" in c.modelData ? c.modelData.status : null,
+            isVisible: c.isVisible,
+            implicitWidth: c.implicitWidth,
+            implicitHeight: c.implicitHeight,
+            visible: c.visible,
+            x: c.x,
+            y: c.y,
+            width: c.width,
+            height: c.height
+          })
+        }
+        var rowKids = []
+        for (var j = 0; j < mainBarRow.children.length; j++) {
+          var rk = mainBarRow.children[j]
+          rowKids.push({
+            id: rk.id || String(rk),
+            x: rk.x,
+            y: rk.y,
+            width: rk.width,
+            height: rk.height,
+            implicitWidth: rk.implicitWidth,
+            implicitHeight: rk.implicitHeight,
+            visible: rk.visible,
+            opacity: rk.opacity
+          })
+        }
+        return JSON.stringify({
+          displayMode: root.displayMode,
+          expanded: root.expanded,
+          drawerHostedCount: root.drawerHostedWidgets.length,
+          drawerSniCount: root.drawerSniItems.length,
+          effectiveHostBar: String(root.effectiveHostBar),
+          rowKids: rowKids,
+          children: kids
         })
+      } catch (e) {
+        return "ERROR: " + e.message + " " + e.stack
       }
-      return JSON.stringify({
-        displayMode: root.displayMode,
-        expanded: root.expanded,
-        drawerHostedCount: root.drawerHostedWidgets.length,
-        drawerSniCount: root.drawerSniItems.length,
-        effectiveHostBar: String(root.effectiveHostBar),
-        children: kids
-      })
     }
     function toggle(): void { root.toggle() }
     function expand(): void { root.expand() }
@@ -536,7 +560,7 @@ BarWidget {
       Row {
         id: pinnedRow
         spacing: Style.space(4)
-        anchors.verticalCenter: parent.verticalCenter
+        height: parent.height
 
         Repeater {
           model: root.pinnedHostedWidgets
@@ -563,7 +587,7 @@ BarWidget {
         id: dropCaret
         active: root.caretActive
         vertical: root.vertical
-        anchors.verticalCenter: parent.verticalCenter
+        height: parent.height
       }
 
       // 3. Indicator Button (Chevron / Dot / Plus)
@@ -576,7 +600,7 @@ BarWidget {
         triggerMode: root.triggerMode
         duration: root.revealDuration
         visible: root.showIndicator
-        anchors.verticalCenter: parent.verticalCenter
+        height: parent.height
 
         onToggleRequested: root.toggle()
         onRightClicked: root.openManage()
@@ -588,7 +612,9 @@ BarWidget {
         width: root.inlineContentExtent
         height: parent.height
         clip: true
-        visible: root.displayMode === "inline" || root.displayMode === "flat"
+        visible: (root.displayMode === "inline" || root.displayMode === "flat")
+                 && (root.expanded || root.displayMode === "flat" || width > 0)
+        enabled: root.expanded || root.displayMode === "flat"
 
         Behavior on width {
           NumberAnimation {
