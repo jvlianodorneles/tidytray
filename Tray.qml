@@ -34,8 +34,6 @@ BarWidget {
 
   property bool expanded: false
   property bool manageOpen: false
-  property bool flipToManage: false
-  property real flipAngle: 0
 
   readonly property bool vertical: root.bar ? root.bar.vertical : false
   readonly property int barSize: root.bar ? root.bar.barSize : Style.bar.sizeHorizontal
@@ -329,27 +327,30 @@ BarWidget {
     owner: root
     bar: root.bar
     open: root.displayMode === "dropdown" && root.expanded && !root.manageOpen
+    focusTarget: dropdownKeyCatcher
 
-    contentWidth: dropdownStrip.implicitWidth
-    contentHeight: dropdownStrip.implicitHeight
+    contentWidth: dropdownPanel.fittedContentWidth(dropdownStrip.implicitWidth)
+    contentHeight: dropdownPanel.fittedContentHeight(dropdownStrip.implicitHeight)
 
     PanelKeyCatcher {
+      id: dropdownKeyCatcher
       anchors.fill: parent
       onCloseRequested: root.collapse()
       onTextKey: function(t) {
         if (t === "s") root.openManage()
         else if (t === "r") root.bar && root.bar.restartShell && root.bar.restartShell()
       }
-    }
 
-    DropdownStrip {
-      id: dropdownStrip
-      bar: root.bar
-      hostedWidgets: root.drawerHostedWidgets
-      sniItems: root.drawerSniItems
-      vertical: root.vertical
-      onSniMenuRequested: function(item, target, mouse) {
-        root.openTrayMenu(item, target, mouse)
+      DropdownStrip {
+        id: dropdownStrip
+        anchors.fill: parent
+        bar: root.bar
+        hostedWidgets: root.drawerHostedWidgets
+        sniItems: root.drawerSniItems
+        vertical: root.vertical
+        onSniMenuRequested: function(item, target, mouse) {
+          root.openTrayMenu(item, target, mouse)
+        }
       }
     }
   }
@@ -363,32 +364,36 @@ BarWidget {
     owner: root
     bar: root.bar
     open: root.displayMode === "drawer" && root.expanded && !root.manageOpen
+    focusTarget: drawerKeyCatcher
 
-    contentWidth: drawerGridComp.implicitWidth
-    contentHeight: drawerGridComp.implicitHeight
+    contentWidth: drawerGridPanel.fittedContentWidth(Style.space(340))
+    contentHeight: drawerGridPanel.fittedContentHeight(drawerGridComp.neededHeight, Style.space(500))
 
     PanelKeyCatcher {
+      id: drawerKeyCatcher
       anchors.fill: parent
+      blocked: drawerGridComp.isEditing
       onCloseRequested: root.collapse()
       onTextKey: function(t) {
         if (t === "s") root.openManage()
       }
-    }
 
-    DrawerGrid {
-      id: drawerGridComp
-      bar: root.bar
-      hostedWidgets: root.drawerHostedWidgets
-      sniItems: root.drawerSniItems
-      onOpenSettingsRequested: root.openManage()
-      onSniMenuRequested: function(item, target, mouse) {
-        root.openTrayMenu(item, target, mouse)
+      DrawerGrid {
+        id: drawerGridComp
+        anchors.fill: parent
+        bar: root.bar
+        hostedWidgets: root.drawerHostedWidgets
+        sniItems: root.drawerSniItems
+        onOpenSettingsRequested: root.openManage()
+        onSniMenuRequested: function(item, target, mouse) {
+          root.openTrayMenu(item, target, mouse)
+        }
       }
     }
   }
 
   // ---------------------------------------------------------------------------
-  // Management Hub Popup (with 3D Flip Perspective)
+  // Management Hub Popup
   // ---------------------------------------------------------------------------
   function openManage() {
     manageOpen = true
@@ -400,40 +405,20 @@ BarWidget {
     owner: root
     bar: root.bar
     open: root.manageOpen
+    focusTarget: manageKeyCatcher
 
-    contentWidth: manageComp.implicitWidth
-    contentHeight: manageComp.implicitHeight
+    contentWidth: managePopup.fittedContentWidth(Style.space(380))
+    contentHeight: managePopup.fittedContentHeight(manageComp.neededHeight, Style.space(560))
 
     PanelKeyCatcher {
+      id: manageKeyCatcher
       anchors.fill: parent
+      blocked: manageComp.isEditing
       onCloseRequested: root.manageOpen = false
-    }
-
-    Item {
-      id: flipContainer
-      anchors.fill: parent
-
-      transform: [
-        Translate { x: -flipContainer.width / 2; y: -flipContainer.height / 2 },
-        Scale {
-          xScale: 1 - 0.14 * Math.abs(Math.sin(root.flipAngle * Math.PI / 180))
-          yScale: 1 - 0.14 * Math.abs(Math.sin(root.flipAngle * Math.PI / 180))
-        },
-        Rotation {
-          axis.x: 0; axis.y: 1; axis.z: 0
-          angle: root.flipAngle
-        },
-        Matrix4x4 {
-          matrix: Qt.matrix4x4(1, 0, 0, 0,
-                               0, 1, 0, 0,
-                               0, 0, 1, 0,
-                               0, 0, -0.0009, 1)
-        },
-        Translate { x: flipContainer.width / 2; y: flipContainer.height / 2 }
-      ]
 
       ManagePanel {
         id: manageComp
+        anchors.fill: parent
         bar: root.bar
         currentSettings: root.activeSettings
         hostedWidgets: root.configuredWidgets
@@ -533,137 +518,140 @@ BarWidget {
     owner: root
     bar: root.bar
     open: root.trayMenuOpen
+    focusTarget: menuKeyCatcher
 
-    contentWidth: Style.space(220)
-    contentHeight: Math.min(320, menuListCol.implicitHeight + Style.space(16))
+    contentWidth: trayMenuPanel.fittedContentWidth(Style.space(220))
+    contentHeight: trayMenuPanel.fittedContentHeight(menuListCol.implicitHeight, Style.space(360))
 
     onOpenChanged: {
       if (!open) root.resetTrayMenu()
     }
 
     PanelKeyCatcher {
+      id: menuKeyCatcher
       anchors.fill: parent
       onCloseRequested: {
         if (root.submenuDepth > 0) root.exitSubmenu()
         else root.trayMenuOpen = false
       }
-    }
 
-    Column {
-      id: menuListCol
-      width: parent.width
-      spacing: 2
+      Column {
+        id: menuListCol
+        anchors.fill: parent
+        spacing: 2
 
-      // Back navigation header if inside submenu
-      Rectangle {
-        width: parent.width
-        height: 28
-        radius: Style.cornerRadius
-        color: Style.hoverFill
-        visible: root.submenuDepth > 0
-
-        Row {
-          anchors.fill: parent
-          anchors.leftMargin: 8
-          spacing: 6
-
-          Text {
-            text: "\uf053" // chevron-left
-            textFormat: Text.PlainText
-            renderType: Text.NativeRendering
-            font.family: Style.font.family
-            font.pixelSize: Style.font.caption
-            color: Color.accent
-            anchors.verticalCenter: parent.verticalCenter
-          }
-
-          Text {
-            text: root.submenuDepth > 0 ? root.submenuStack[root.submenuDepth - 1].title : "Back"
-            textFormat: Text.PlainText
-            renderType: Text.NativeRendering
-            font.family: Style.font.family
-            font.pixelSize: Style.font.bodySmall
-            color: Color.foreground
-            anchors.verticalCenter: parent.verticalCenter
-            elide: Text.ElideRight
-          }
-        }
-
-        MouseArea {
-          anchors.fill: parent
-          cursorShape: Qt.PointingHandCursor
-          onClicked: root.exitSubmenu()
-        }
-      }
-
-      // Menu Entries
-      Repeater {
-        model: root.currentChildren
-        delegate: Rectangle {
-          required property var modelData
-          readonly property bool isSeparator: modelData && modelData.isSeparator
-          readonly property bool hasSubmenu: modelData && modelData.hasChildren
-
-          width: menuListCol.width
-          height: isSeparator ? 5 : 28
+        // Back navigation header if inside submenu
+        Rectangle {
+          width: parent.width
+          height: 28
           radius: Style.cornerRadius
-          color: (!isSeparator && menuEntryMouse.containsMouse) ? Style.hoverFill : "transparent"
-
-          // Separator line
-          Rectangle {
-            anchors.centerIn: parent
-            width: parent.width - 12
-            height: 1
-            color: Color.popups.border
-            visible: parent.isSeparator
-          }
+          color: Style.hoverFill
+          visible: root.submenuDepth > 0
 
           Row {
             anchors.fill: parent
             anchors.leftMargin: 8
-            anchors.rightMargin: 8
             spacing: 6
-            visible: !parent.isSeparator
 
             Text {
-              text: parent.parent.modelData ? String(parent.parent.modelData.text || "") : ""
-              textFormat: Text.PlainText
-              renderType: Text.NativeRendering
-              font.family: Style.font.family
-              font.pixelSize: Style.font.bodySmall
-              color: parent.parent.modelData && parent.parent.modelData.enabled !== false
-                ? Color.foreground : Color.muted
-              anchors.verticalCenter: parent.verticalCenter
-              width: parent.width - 24
-              elide: Text.ElideRight
-            }
-
-            Text {
-              text: "\uf054" // chevron-right
+              text: "\uf053" // chevron-left
               textFormat: Text.PlainText
               renderType: Text.NativeRendering
               font.family: Style.font.family
               font.pixelSize: Style.font.caption
-              color: Color.muted
-              visible: parent.parent.hasSubmenu
+              color: Color.accent
               anchors.verticalCenter: parent.verticalCenter
+            }
+
+            Text {
+              text: root.submenuDepth > 0 ? root.submenuStack[root.submenuDepth - 1].title : "Back"
+              textFormat: Text.PlainText
+              renderType: Text.NativeRendering
+              font.family: Style.font.family
+              font.pixelSize: Style.font.bodySmall
+              color: Color.foreground
+              anchors.verticalCenter: parent.verticalCenter
+              elide: Text.ElideRight
             }
           }
 
           MouseArea {
-            id: menuEntryMouse
             anchors.fill: parent
-            hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
-            visible: !parent.isSeparator
+            onClicked: root.exitSubmenu()
+          }
+        }
 
-            onClicked: {
-              if (!parent.modelData) return
-              if (parent.hasSubmenu) {
-                root.enterSubmenu(parent.modelData, String(parent.modelData.text || ""))
-              } else {
-                root.trayMenuOpen = false
-                parent.modelData.triggered()
+        // Menu Entries
+        Repeater {
+          model: root.currentChildren
+          delegate: Rectangle {
+            id: menuItemDelegate
+            required property var modelData
+            readonly property bool isSeparator: modelData && modelData.isSeparator
+            readonly property bool hasSubmenu: modelData && modelData.hasChildren
+
+            width: menuListCol.width
+            height: isSeparator ? 5 : 28
+            radius: Style.cornerRadius
+            color: (!isSeparator && menuEntryMouse.containsMouse) ? Style.hoverFill : "transparent"
+
+            // Separator line
+            Rectangle {
+              anchors.centerIn: parent
+              width: parent.width - 12
+              height: 1
+              color: Color.popups.border
+              visible: menuItemDelegate.isSeparator
+            }
+
+            Row {
+              anchors.fill: parent
+              anchors.leftMargin: 8
+              anchors.rightMargin: 8
+              spacing: 6
+              visible: !menuItemDelegate.isSeparator
+
+              Text {
+                text: menuItemDelegate.modelData ? String(menuItemDelegate.modelData.text || "") : ""
+                textFormat: Text.PlainText
+                renderType: Text.NativeRendering
+                font.family: Style.font.family
+                font.pixelSize: Style.font.bodySmall
+                color: menuItemDelegate.modelData && menuItemDelegate.modelData.enabled !== false
+                  ? Color.foreground : Color.muted
+                anchors.verticalCenter: parent.verticalCenter
+                width: parent.width - 24
+                elide: Text.ElideRight
+              }
+
+              Text {
+                text: "\uf054" // chevron-right
+                textFormat: Text.PlainText
+                renderType: Text.NativeRendering
+                font.family: Style.font.family
+                font.pixelSize: Style.font.caption
+                color: Color.muted
+                visible: menuItemDelegate.hasSubmenu
+                anchors.verticalCenter: parent.verticalCenter
+              }
+            }
+
+            MouseArea {
+              id: menuEntryMouse
+              anchors.fill: parent
+              hoverEnabled: true
+              cursorShape: Qt.PointingHandCursor
+              visible: !menuItemDelegate.isSeparator
+
+              onClicked: {
+                if (!menuItemDelegate.modelData) return
+                if (menuItemDelegate.hasSubmenu) {
+                  root.enterSubmenu(menuItemDelegate.modelData, String(menuItemDelegate.modelData.text || ""))
+                } else {
+                  root.trayMenuOpen = false
+                  menuItemDelegate.modelData.triggered()
+                }
               }
             }
           }

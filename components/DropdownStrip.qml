@@ -21,41 +21,33 @@ Item {
   implicitWidth: vertical ? Style.bar.sizeHorizontal : (itemsRow.implicitWidth + stripPadding * 2)
   implicitHeight: vertical ? (itemsRow.implicitHeight + stripPadding * 2) : Style.bar.sizeHorizontal
 
-  Rectangle {
-    anchors.fill: parent
-    radius: Style.cornerRadius
-    color: Color.bar.background
-    border.color: Color.popups.border
-    border.width: 1
+  Row {
+    id: itemsRow
+    anchors.centerIn: parent
+    spacing: dropdownStripRoot.itemsSpacing
 
-    Row {
-      id: itemsRow
-      anchors.centerIn: parent
-      spacing: dropdownStripRoot.itemsSpacing
-
-      // Hosted Widgets
-      Repeater {
-        model: dropdownStripRoot.hostedWidgets
-        delegate: HostedWidget {
-          bar: dropdownStripRoot.bar
-          modelData: modelData
-          vertical: dropdownStripRoot.vertical
-          onDragStarted: function(entry, mouse) {
-            dropdownStripRoot.dragStarted(entry, mouse)
-          }
+    // Hosted Widgets
+    Repeater {
+      model: dropdownStripRoot.hostedWidgets
+      delegate: HostedWidget {
+        bar: dropdownStripRoot.bar
+        modelData: modelData
+        vertical: dropdownStripRoot.vertical
+        onDragStarted: function(entry, mouse) {
+          dropdownStripRoot.dragStarted(entry, mouse)
         }
       }
+    }
 
-      // SNI Items
-      Repeater {
-        model: dropdownStripRoot.sniItems
-        delegate: SnItemDelegate {
-          bar: dropdownStripRoot.bar
-          modelData: modelData
-          vertical: dropdownStripRoot.vertical
-          onRequestMenu: function(item, target, mouse) {
-            dropdownStripRoot.sniMenuRequested(item, target, mouse)
-          }
+    // SNI Items
+    Repeater {
+      model: dropdownStripRoot.sniItems
+      delegate: SnItemDelegate {
+        bar: dropdownStripRoot.bar
+        modelData: modelData
+        vertical: dropdownStripRoot.vertical
+        onRequestMenu: function(item, target, mouse) {
+          dropdownStripRoot.sniMenuRequested(item, target, mouse)
         }
       }
     }

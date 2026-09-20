@@ -39,6 +39,9 @@ Item {
   property string searchQuery: ""
   property string activeTab: "items" // "items" or "config"
 
+  readonly property bool isEditing: searchField.activeFocus
+  readonly property int neededHeight: contentColumn.implicitHeight + Style.space(12)
+
   // Bar widgets currently on this bar section (candidates to be tucked into TidyTray)
   readonly property var candidateBarWidgets: {
     var layout = manageRoot.bar && manageRoot.bar.layoutConfig ? manageRoot.bar.layoutConfig : null
@@ -56,54 +59,57 @@ Item {
   }
 
   implicitWidth: Style.space(380)
-  implicitHeight: contentColumn.implicitHeight + Style.space(16)
+  implicitHeight: neededHeight
 
   Column {
     id: contentColumn
-    anchors.fill: parent
+    width: parent ? parent.width : Style.space(380)
     spacing: Style.space(10)
 
-    // Header
-    Row {
+    // Header: Cog + Title on left, Tabs + Close on right
+    Item {
       width: parent.width
-      spacing: Style.space(8)
+      height: 28
 
-      Text {
-        text: "\uf013" // nf-fa-cog
-        textFormat: Text.PlainText
-        renderType: Text.NativeRendering
-        font.family: Style.font.family
-        font.pixelSize: Style.font.title
-        color: Color.accent
-        anchors.verticalCenter: parent.verticalCenter
-      }
-
-      Text {
-        text: "TidyTray"
-        textFormat: Text.PlainText
-        renderType: Text.NativeRendering
-        font.family: Style.font.family
-        font.pixelSize: Style.font.title
-        font.bold: true
-        color: Color.foreground
-        anchors.verticalCenter: parent.verticalCenter
-      }
-
-      Item {
-        width: parent.width - 240
-        height: 1
-      }
-
-      // Tab switcher: Items vs Settings
       Row {
-        spacing: 4
+        anchors.left: parent.left
         anchors.verticalCenter: parent.verticalCenter
+        spacing: Style.space(8)
 
+        Text {
+          text: "\uf013" // nf-fa-cog
+          textFormat: Text.PlainText
+          renderType: Text.NativeRendering
+          font.family: Style.font.family
+          font.pixelSize: Style.font.title
+          color: Color.accent
+          anchors.verticalCenter: parent.verticalCenter
+        }
+
+        Text {
+          text: "TidyTray"
+          textFormat: Text.PlainText
+          renderType: Text.NativeRendering
+          font.family: Style.font.family
+          font.pixelSize: Style.font.title
+          font.bold: true
+          color: Color.foreground
+          anchors.verticalCenter: parent.verticalCenter
+        }
+      }
+
+      Row {
+        anchors.right: parent.right
+        anchors.verticalCenter: parent.verticalCenter
+        spacing: Style.space(6)
+
+        // Tab switcher: Items vs Settings
         Rectangle {
-          width: 60
+          width: 58
           height: 26
           radius: Style.cornerRadius
           color: manageRoot.activeTab === "items" ? Color.accent : manageRoot.surfaceAlt
+
           Text {
             anchors.centerIn: parent
             text: "Items"
@@ -113,6 +119,7 @@ Item {
             font.pixelSize: Style.font.bodySmall
             color: manageRoot.activeTab === "items" ? Color.background : Color.foreground
           }
+
           MouseArea {
             anchors.fill: parent
             cursorShape: Qt.PointingHandCursor
@@ -121,10 +128,11 @@ Item {
         }
 
         Rectangle {
-          width: 60
+          width: 66
           height: 26
           radius: Style.cornerRadius
           color: manageRoot.activeTab === "config" ? Color.accent : manageRoot.surfaceAlt
+
           Text {
             anchors.centerIn: parent
             text: "Settings"
@@ -134,38 +142,38 @@ Item {
             font.pixelSize: Style.font.bodySmall
             color: manageRoot.activeTab === "config" ? Color.background : Color.foreground
           }
+
           MouseArea {
             anchors.fill: parent
             cursorShape: Qt.PointingHandCursor
             onClicked: manageRoot.activeTab = "config"
           }
         }
-      }
 
-      // Close button
-      Rectangle {
-        width: 26
-        height: 26
-        radius: Style.cornerRadius
-        color: closeMouse.containsMouse ? Color.urgent : "transparent"
-        anchors.verticalCenter: parent.verticalCenter
+        // Close button
+        Rectangle {
+          width: 26
+          height: 26
+          radius: Style.cornerRadius
+          color: closeMouse.containsMouse ? Color.urgent : manageRoot.surfaceAlt
 
-        Text {
-          anchors.centerIn: parent
-          text: "\uf00d" // nf-fa-times
-          textFormat: Text.PlainText
-          renderType: Text.NativeRendering
-          font.family: Style.font.family
-          font.pixelSize: Style.font.bodySmall
-          color: closeMouse.containsMouse ? Color.background : manageRoot.mutedColor
-        }
+          Text {
+            anchors.centerIn: parent
+            text: "\uf00d" // nf-fa-times
+            textFormat: Text.PlainText
+            renderType: Text.NativeRendering
+            font.family: Style.font.family
+            font.pixelSize: Style.font.bodySmall
+            color: closeMouse.containsMouse ? Color.background : manageRoot.mutedColor
+          }
 
-        MouseArea {
-          id: closeMouse
-          anchors.fill: parent
-          hoverEnabled: true
-          cursorShape: Qt.PointingHandCursor
-          onClicked: manageRoot.closeRequested()
+          MouseArea {
+            id: closeMouse
+            anchors.fill: parent
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onClicked: manageRoot.closeRequested()
+          }
         }
       }
     }
@@ -239,6 +247,7 @@ Item {
         height: Math.min(320, itemsListCol.implicitHeight)
         contentHeight: itemsListCol.implicitHeight
         clip: true
+        boundsBehavior: Flickable.StopAtBounds
 
         Column {
           id: itemsListCol
@@ -260,6 +269,7 @@ Item {
           Repeater {
             model: manageRoot.hostedWidgets
             delegate: Rectangle {
+              id: widgetRowDelegate
               required property var modelData
               readonly property string wId: TrayModel.wrapperId(modelData)
               readonly property bool isPinned: manageRoot.pinnedIds.indexOf(wId) !== -1
@@ -273,47 +283,57 @@ Item {
               color: manageRoot.surfaceAlt
               visible: matchesSearch
 
-              Row {
+              Item {
                 anchors.fill: parent
                 anchors.leftMargin: 8
                 anchors.rightMargin: 8
-                spacing: 8
 
-                Text {
-                  text: "\uf009" // nf-fa-th_large
-                  textFormat: Text.PlainText
-                  renderType: Text.NativeRendering
-                  font.family: Style.font.family
-                  font.pixelSize: Style.font.bodySmall
-                  color: Color.accent
+                Row {
+                  anchors.left: parent.left
+                  anchors.right: widgetActionsRow.left
+                  anchors.rightMargin: 8
                   anchors.verticalCenter: parent.verticalCenter
-                }
+                  spacing: 8
 
-                Text {
-                  text: TrayModel.friendlyDisplayName(parent.parent.wId)
-                  textFormat: Text.PlainText
-                  renderType: Text.NativeRendering
-                  font.family: Style.font.family
-                  font.pixelSize: Style.font.bodySmall
-                  color: Color.foreground
-                  anchors.verticalCenter: parent.verticalCenter
-                  width: 140
-                  elide: Text.ElideRight
-                }
+                  Text {
+                    text: "\uf009" // nf-fa-th_large
+                    textFormat: Text.PlainText
+                    renderType: Text.NativeRendering
+                    font.family: Style.font.family
+                    font.pixelSize: Style.font.bodySmall
+                    color: Color.accent
+                    anchors.verticalCenter: parent.verticalCenter
+                  }
 
-                Item { width: 10; height: 1 }
+                  Text {
+                    text: TrayModel.friendlyDisplayName(widgetRowDelegate.wId)
+                    textFormat: Text.PlainText
+                    renderType: Text.NativeRendering
+                    font.family: Style.font.family
+                    font.pixelSize: Style.font.bodySmall
+                    color: Color.foreground
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: parent.width - 30
+                    elide: Text.ElideRight
+                  }
+                }
 
                 // Actions: Pin / Hide / Eject
                 Row {
-                  spacing: 4
+                  id: widgetActionsRow
+                  anchors.right: parent.right
                   anchors.verticalCenter: parent.verticalCenter
+                  spacing: 4
 
                   // Pin toggle
                   Rectangle {
                     width: 24
                     height: 24
                     radius: 4
-                    color: parent.parent.parent.isPinned ? Color.accent : "transparent"
+                    color: widgetRowDelegate.isPinned ? Color.accent : "transparent"
+                    border.color: widgetRowDelegate.isPinned ? Color.accent : manageRoot.mutedColor
+                    border.width: widgetRowDelegate.isPinned ? 0 : 1
+
                     Text {
                       anchors.centerIn: parent
                       text: "\uf08d" // nf-fa-thumb_tack
@@ -321,12 +341,12 @@ Item {
                       renderType: Text.NativeRendering
                       font.family: Style.font.family
                       font.pixelSize: Style.font.caption
-                      color: parent.parent.parent.parent.isPinned ? Color.background : manageRoot.mutedColor
+                      color: widgetRowDelegate.isPinned ? Color.background : manageRoot.mutedColor
                     }
                     MouseArea {
                       anchors.fill: parent
                       cursorShape: Qt.PointingHandCursor
-                      onClicked: manageRoot.togglePinnedWidget(parent.parent.parent.wId)
+                      onClicked: manageRoot.togglePinnedWidget(widgetRowDelegate.wId)
                     }
                   }
 
@@ -335,20 +355,23 @@ Item {
                     width: 24
                     height: 24
                     radius: 4
-                    color: parent.parent.parent.isHidden ? Color.urgent : "transparent"
+                    color: widgetRowDelegate.isHidden ? Color.urgent : "transparent"
+                    border.color: widgetRowDelegate.isHidden ? Color.urgent : manageRoot.mutedColor
+                    border.width: widgetRowDelegate.isHidden ? 0 : 1
+
                     Text {
                       anchors.centerIn: parent
-                      text: parent.parent.parent.parent.isHidden ? "\uf070" : "\uf06e" // eye-slash / eye
+                      text: widgetRowDelegate.isHidden ? "\uf070" : "\uf06e" // eye-slash / eye
                       textFormat: Text.PlainText
                       renderType: Text.NativeRendering
                       font.family: Style.font.family
                       font.pixelSize: Style.font.caption
-                      color: parent.parent.parent.parent.isHidden ? Color.background : manageRoot.mutedColor
+                      color: widgetRowDelegate.isHidden ? Color.background : manageRoot.mutedColor
                     }
                     MouseArea {
                       anchors.fill: parent
                       cursorShape: Qt.PointingHandCursor
-                      onClicked: manageRoot.toggleHiddenWidget(parent.parent.parent.wId)
+                      onClicked: manageRoot.toggleHiddenWidget(widgetRowDelegate.wId)
                     }
                   }
 
@@ -358,6 +381,9 @@ Item {
                     height: 24
                     radius: 4
                     color: "transparent"
+                    border.color: manageRoot.mutedColor
+                    border.width: 1
+
                     Text {
                       anchors.centerIn: parent
                       text: "\uf08b" // nf-fa-sign_out
@@ -370,7 +396,7 @@ Item {
                     MouseArea {
                       anchors.fill: parent
                       cursorShape: Qt.PointingHandCursor
-                      onClicked: manageRoot.releaseWidget(parent.parent.parent.wId)
+                      onClicked: manageRoot.releaseWidget(widgetRowDelegate.wId)
                     }
                   }
                 }
@@ -395,6 +421,7 @@ Item {
           Repeater {
             model: manageRoot.candidateBarWidgets
             delegate: Rectangle {
+              id: candidateRowDelegate
               required property var modelData
               readonly property string cId: String(modelData.id || "")
               readonly property bool matchesSearch: !manageRoot.searchQuery ||
@@ -406,43 +433,51 @@ Item {
               color: manageRoot.surfaceAlt
               visible: matchesSearch
 
-              Row {
+              Item {
                 anchors.fill: parent
                 anchors.leftMargin: 8
                 anchors.rightMargin: 8
-                spacing: 8
 
-                Text {
-                  text: "\uf0c9" // nf-fa-bars
-                  textFormat: Text.PlainText
-                  renderType: Text.NativeRendering
-                  font.family: Style.font.family
-                  font.pixelSize: Style.font.bodySmall
-                  color: manageRoot.mutedColor
+                Row {
+                  anchors.left: parent.left
+                  anchors.right: candidateActionBtn.left
+                  anchors.rightMargin: 8
                   anchors.verticalCenter: parent.verticalCenter
-                }
+                  spacing: 8
 
-                Text {
-                  text: TrayModel.friendlyDisplayName(parent.parent.cId)
-                  textFormat: Text.PlainText
-                  renderType: Text.NativeRendering
-                  font.family: Style.font.family
-                  font.pixelSize: Style.font.bodySmall
-                  color: Color.foreground
-                  anchors.verticalCenter: parent.verticalCenter
-                  width: 170
-                  elide: Text.ElideRight
-                }
+                  Text {
+                    text: "\uf0c9" // nf-fa-bars
+                    textFormat: Text.PlainText
+                    renderType: Text.NativeRendering
+                    font.family: Style.font.family
+                    font.pixelSize: Style.font.bodySmall
+                    color: manageRoot.mutedColor
+                    anchors.verticalCenter: parent.verticalCenter
+                  }
 
-                Item { width: 10; height: 1 }
+                  Text {
+                    text: TrayModel.friendlyDisplayName(candidateRowDelegate.cId)
+                    textFormat: Text.PlainText
+                    renderType: Text.NativeRendering
+                    font.family: Style.font.family
+                    font.pixelSize: Style.font.bodySmall
+                    color: Color.foreground
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: parent.width - 30
+                    elide: Text.ElideRight
+                  }
+                }
 
                 // Action: Move to Tray
                 Rectangle {
+                  id: candidateActionBtn
+                  anchors.right: parent.right
+                  anchors.verticalCenter: parent.verticalCenter
                   width: 24
                   height: 24
                   radius: 4
                   color: Color.accent
-                  anchors.verticalCenter: parent.verticalCenter
+
                   Text {
                     anchors.centerIn: parent
                     text: "\uf067" // nf-fa-plus
@@ -455,7 +490,7 @@ Item {
                   MouseArea {
                     anchors.fill: parent
                     cursorShape: Qt.PointingHandCursor
-                    onClicked: manageRoot.captureWidget(parent.parent.parent.cId)
+                    onClicked: manageRoot.captureWidget(candidateRowDelegate.cId)
                   }
                 }
               }
@@ -479,6 +514,7 @@ Item {
           Repeater {
             model: manageRoot.sniItems
             delegate: Rectangle {
+              id: sniRowDelegate
               required property var modelData
               readonly property string sId: String(modelData.id || "")
               readonly property bool isPinned: manageRoot.pinnedIds.indexOf(sId) !== -1
@@ -493,47 +529,57 @@ Item {
               color: manageRoot.surfaceAlt
               visible: matchesSearch
 
-              Row {
+              Item {
                 anchors.fill: parent
                 anchors.leftMargin: 8
                 anchors.rightMargin: 8
-                spacing: 8
 
-                Text {
-                  text: "\uf2d0" // nf-fa-window_maximize
-                  textFormat: Text.PlainText
-                  renderType: Text.NativeRendering
-                  font.family: Style.font.family
-                  font.pixelSize: Style.font.bodySmall
-                  color: Color.accent
+                Row {
+                  anchors.left: parent.left
+                  anchors.right: sniActionsRow.left
+                  anchors.rightMargin: 8
                   anchors.verticalCenter: parent.verticalCenter
-                }
+                  spacing: 8
 
-                Text {
-                  text: modelData.title || TrayModel.friendlyDisplayName(parent.parent.sId)
-                  textFormat: Text.PlainText
-                  renderType: Text.NativeRendering
-                  font.family: Style.font.family
-                  font.pixelSize: Style.font.bodySmall
-                  color: Color.foreground
-                  anchors.verticalCenter: parent.verticalCenter
-                  width: 140
-                  elide: Text.ElideRight
-                }
+                  Text {
+                    text: "\uf2d0" // nf-fa-window_maximize
+                    textFormat: Text.PlainText
+                    renderType: Text.NativeRendering
+                    font.family: Style.font.family
+                    font.pixelSize: Style.font.bodySmall
+                    color: Color.accent
+                    anchors.verticalCenter: parent.verticalCenter
+                  }
 
-                Item { width: 10; height: 1 }
+                  Text {
+                    text: modelData.title || TrayModel.friendlyDisplayName(sniRowDelegate.sId)
+                    textFormat: Text.PlainText
+                    renderType: Text.NativeRendering
+                    font.family: Style.font.family
+                    font.pixelSize: Style.font.bodySmall
+                    color: Color.foreground
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: parent.width - 30
+                    elide: Text.ElideRight
+                  }
+                }
 
                 // Actions: Pin / Hide
                 Row {
-                  spacing: 4
+                  id: sniActionsRow
+                  anchors.right: parent.right
                   anchors.verticalCenter: parent.verticalCenter
+                  spacing: 4
 
                   // Pin toggle
                   Rectangle {
                     width: 24
                     height: 24
                     radius: 4
-                    color: parent.parent.parent.isPinned ? Color.accent : "transparent"
+                    color: sniRowDelegate.isPinned ? Color.accent : "transparent"
+                    border.color: sniRowDelegate.isPinned ? Color.accent : manageRoot.mutedColor
+                    border.width: sniRowDelegate.isPinned ? 0 : 1
+
                     Text {
                       anchors.centerIn: parent
                       text: "\uf08d" // nf-fa-thumb_tack
@@ -541,12 +587,12 @@ Item {
                       renderType: Text.NativeRendering
                       font.family: Style.font.family
                       font.pixelSize: Style.font.caption
-                      color: parent.parent.parent.parent.isPinned ? Color.background : manageRoot.mutedColor
+                      color: sniRowDelegate.isPinned ? Color.background : manageRoot.mutedColor
                     }
                     MouseArea {
                       anchors.fill: parent
                       cursorShape: Qt.PointingHandCursor
-                      onClicked: manageRoot.togglePinnedSni(parent.parent.parent.sId)
+                      onClicked: manageRoot.togglePinnedSni(sniRowDelegate.sId)
                     }
                   }
 
@@ -555,20 +601,23 @@ Item {
                     width: 24
                     height: 24
                     radius: 4
-                    color: parent.parent.parent.isHidden ? Color.urgent : "transparent"
+                    color: sniRowDelegate.isHidden ? Color.urgent : "transparent"
+                    border.color: sniRowDelegate.isHidden ? Color.urgent : manageRoot.mutedColor
+                    border.width: sniRowDelegate.isHidden ? 0 : 1
+
                     Text {
                       anchors.centerIn: parent
-                      text: parent.parent.parent.parent.isHidden ? "\uf070" : "\uf06e" // eye-slash / eye
+                      text: sniRowDelegate.isHidden ? "\uf070" : "\uf06e" // eye-slash / eye
                       textFormat: Text.PlainText
                       renderType: Text.NativeRendering
                       font.family: Style.font.family
                       font.pixelSize: Style.font.caption
-                      color: parent.parent.parent.parent.isHidden ? Color.background : manageRoot.mutedColor
+                      color: sniRowDelegate.isHidden ? Color.background : manageRoot.mutedColor
                     }
                     MouseArea {
                       anchors.fill: parent
                       cursorShape: Qt.PointingHandCursor
-                      onClicked: manageRoot.toggleHiddenSni(parent.parent.parent.sId)
+                      onClicked: manageRoot.toggleHiddenSni(sniRowDelegate.sId)
                     }
                   }
                 }
@@ -597,6 +646,7 @@ Item {
       }
 
       Row {
+        id: modesRow
         width: parent.width
         spacing: 4
 
@@ -606,8 +656,9 @@ Item {
         Repeater {
           model: 4
           Rectangle {
+            id: modeItemRect
             required property int index
-            readonly property string mName: parent.modes[index]
+            readonly property string mName: modesRow.modes[index]
             readonly property bool isSelected: (manageRoot.currentSettings.displayMode || "inline") === mName
 
             width: (contentColumn.width - 12) / 4
@@ -617,12 +668,12 @@ Item {
 
             Text {
               anchors.centerIn: parent
-              text: parent.parent.modeLabels[parent.index]
+              text: modesRow.modeLabels[modeItemRect.index]
               textFormat: Text.PlainText
               renderType: Text.NativeRendering
               font.family: Style.font.family
               font.pixelSize: Style.font.bodySmall
-              color: parent.isSelected ? Color.background : Color.foreground
+              color: modeItemRect.isSelected ? Color.background : Color.foreground
             }
 
             MouseArea {
@@ -630,7 +681,7 @@ Item {
               cursorShape: Qt.PointingHandCursor
               onClicked: {
                 var copy = Object.assign({}, manageRoot.currentSettings)
-                copy.displayMode = parent.mName
+                copy.displayMode = modeItemRect.mName
                 manageRoot.updateSettingsRequested(copy)
               }
             }
@@ -654,6 +705,7 @@ Item {
         spacing: 6
 
         Rectangle {
+          id: triggerClickRect
           width: (contentColumn.width - 6) / 2
           height: 28
           radius: Style.cornerRadius
@@ -682,6 +734,7 @@ Item {
         }
 
         Rectangle {
+          id: triggerHoverRect
           width: (contentColumn.width - 6) / 2
           height: 28
           radius: Style.cornerRadius
@@ -722,6 +775,7 @@ Item {
       }
 
       Row {
+        id: iconsRow
         width: parent.width
         spacing: 4
 
@@ -731,8 +785,9 @@ Item {
         Repeater {
           model: 5
           Rectangle {
+            id: iconItemRect
             required property int index
-            readonly property string iName: parent.icons[index]
+            readonly property string iName: iconsRow.icons[index]
             readonly property bool isSelected: (manageRoot.currentSettings.indicatorIcon || "chevron") === iName
 
             width: (contentColumn.width - 16) / 5
@@ -742,12 +797,12 @@ Item {
 
             Text {
               anchors.centerIn: parent
-              text: parent.parent.iconLabels[parent.index]
+              text: iconsRow.iconLabels[iconItemRect.index]
               textFormat: Text.PlainText
               renderType: Text.NativeRendering
               font.family: Style.font.family
               font.pixelSize: Style.font.caption
-              color: parent.isSelected ? Color.background : Color.foreground
+              color: iconItemRect.isSelected ? Color.background : Color.foreground
             }
 
             MouseArea {
@@ -755,7 +810,7 @@ Item {
               cursorShape: Qt.PointingHandCursor
               onClicked: {
                 var copy = Object.assign({}, manageRoot.currentSettings)
-                copy.indicatorIcon = parent.iName
+                copy.indicatorIcon = iconItemRect.iName
                 manageRoot.updateSettingsRequested(copy)
               }
             }
@@ -769,6 +824,7 @@ Item {
         spacing: 8
 
         Rectangle {
+          id: dedupCheckbox
           width: 20
           height: 20
           radius: 4
@@ -793,7 +849,7 @@ Item {
             cursorShape: Qt.PointingHandCursor
             onClicked: {
               var copy = Object.assign({}, manageRoot.currentSettings)
-              copy.deduplicateKnown = !parent.checked
+              copy.deduplicateKnown = !dedupCheckbox.checked
               manageRoot.updateSettingsRequested(copy)
             }
           }

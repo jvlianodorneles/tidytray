@@ -17,12 +17,15 @@ Item {
   signal sniActivated(var item)
   signal sniMenuRequested(var item, var target, var mouse)
 
+  readonly property bool isEditing: searchInput.activeFocus
+  readonly property int neededHeight: drawerColumn.implicitHeight + Style.space(16)
+
   implicitWidth: Style.space(340)
-  implicitHeight: drawerColumn.implicitHeight + Style.space(16)
+  implicitHeight: neededHeight
 
   Column {
     id: drawerColumn
-    anchors.fill: parent
+    width: parent ? parent.width : Style.space(340)
     spacing: Style.space(10)
 
     // Top Bar: Search + View Toggle + Settings
