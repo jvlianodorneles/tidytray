@@ -180,6 +180,8 @@ BarWidget {
         return JSON.stringify({
           displayMode: root.displayMode,
           expanded: root.expanded,
+          barSection: root.barSection,
+          onLeft: root.onLeft,
           drawerHostedCount: root.drawerHostedWidgets.length,
           drawerSniCount: root.drawerSniItems.length,
           configuredWidgetsCount: root.configuredWidgets.length,
@@ -435,6 +437,20 @@ BarWidget {
   property var hostBar: root.bar
 
   readonly property var effectiveHostBar: (hostBar && isRealHostBar(hostBar)) ? hostBar : bar
+
+  readonly property string barSection: {
+    var layout = effectiveHostBar ? effectiveHostBar.layoutConfig : null
+    var sec = TrayModel.layoutSectionFor(layout, root.moduleName)
+    if (sec) return sec
+    var p = root.parent
+    while (p) {
+      if ("region" in p && p.region) return p.region
+      p = p.parent
+    }
+    return "right"
+  }
+
+  readonly property bool onLeft: barSection === "left"
 
   function isRealHostBar(b) {
     return b !== null && b !== undefined && typeof b === "object" && "barWidgetRegistry" in b
@@ -756,12 +772,14 @@ BarWidget {
       anchors.fill: parent
       spacing: 0
       visible: !root.vertical
+      layoutDirection: root.onLeft ? Qt.LeftToRight : Qt.RightToLeft
 
       // 1. Pinned Items Row
       Row {
         id: pinnedRow
         spacing: Style.space(4)
         height: parent.height
+        layoutDirection: root.onLeft ? Qt.LeftToRight : Qt.RightToLeft
 
         Repeater {
           model: root.pinnedHostedWidgets
@@ -801,6 +819,7 @@ BarWidget {
         indicatorIcon: root.indicatorIcon
         triggerMode: root.triggerMode
         duration: root.revealDuration
+        onLeft: root.onLeft
         visible: root.showIndicator
         height: parent.height
 
@@ -829,7 +848,10 @@ BarWidget {
           id: inlineContentRow
           spacing: Style.space(4)
           anchors.verticalCenter: parent.verticalCenter
+          anchors.right: root.onLeft ? undefined : parent.right
+          anchors.left: root.onLeft ? parent.left : undefined
           height: parent.height
+          layoutDirection: root.onLeft ? Qt.LeftToRight : Qt.RightToLeft
 
           Repeater {
             model: (root.displayMode === "inline" || root.displayMode === "flat") ? root.drawerHostedWidgets : []

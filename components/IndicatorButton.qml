@@ -12,6 +12,7 @@ BarIconButton {
   property string displayMode: "inline"    // inline, dropdown, drawer, flat
   property string indicatorIcon: "chevron" // chevron, dot, dots, plus, none
   property string triggerMode: "click"     // click, hover
+  property bool onLeft: false
   property int duration: 200
 
   signal toggleRequested()
@@ -29,13 +30,13 @@ BarIconButton {
   activeColor: Color.accent
   tooltipText: "TidyTray"
 
-  text: TrayModel.chevronGlyph(indicatorRoot.indicatorIcon, indicatorRoot.vertical)
+  text: TrayModel.chevronGlyph(indicatorRoot.indicatorIcon, indicatorRoot.vertical, indicatorRoot.onLeft)
 
   textRotation: {
     if (indicatorRoot.indicatorIcon === "plus") return indicatorRoot.expanded ? 45 : 0
     if (indicatorRoot.isChevronLike) {
       if (indicatorRoot.displayMode === "dropdown" || indicatorRoot.displayMode === "drawer") {
-        return indicatorRoot.expanded ? -90 : 0
+        return indicatorRoot.expanded ? (indicatorRoot.onLeft ? 90 : -90) : 0
       }
       return indicatorRoot.expanded ? 180 : 0
     }
