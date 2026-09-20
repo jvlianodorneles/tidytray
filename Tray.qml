@@ -797,6 +797,7 @@ BarWidget {
         bar: root.effectiveHostBar
         dragOver: root.dragOver
         expanded: root.expanded
+        displayMode: root.displayMode
         indicatorIcon: root.indicatorIcon
         triggerMode: root.triggerMode
         duration: root.revealDuration

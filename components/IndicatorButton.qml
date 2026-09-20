@@ -9,6 +9,7 @@ BarIconButton {
 
   property bool expanded: false
   property bool dragOver: false
+  property string displayMode: "inline"    // inline, dropdown, drawer, flat
   property string indicatorIcon: "chevron" // chevron, dot, dots, plus, none
   property string triggerMode: "click"     // click, hover
   property int duration: 200
@@ -17,6 +18,11 @@ BarIconButton {
   signal rightClicked()
   signal hoverEntered()
   signal hoverExited()
+
+  readonly property bool isChevronLike: {
+    var icon = String(indicatorIcon || "").toLowerCase()
+    return icon === "chevron" || icon === "caret" || icon === "angle" || icon === "arrow" || icon === "double"
+  }
 
   visible: indicatorIcon !== "none"
   active: indicatorRoot.expanded || indicatorRoot.dragOver
@@ -27,7 +33,12 @@ BarIconButton {
 
   textRotation: {
     if (indicatorRoot.indicatorIcon === "plus") return indicatorRoot.expanded ? 45 : 0
-    if (indicatorRoot.indicatorIcon === "chevron") return indicatorRoot.expanded ? 180 : 0
+    if (indicatorRoot.isChevronLike) {
+      if (indicatorRoot.displayMode === "dropdown" || indicatorRoot.displayMode === "drawer") {
+        return indicatorRoot.expanded ? -90 : 0
+      }
+      return indicatorRoot.expanded ? 180 : 0
+    }
     return 0
   }
 
