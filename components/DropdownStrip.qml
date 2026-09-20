@@ -8,6 +8,7 @@ Item {
   id: dropdownStripRoot
 
   property var bar: null
+  property Item barAnchor: null
   property var hostedWidgets: []
   property var sniItems: []
   property bool vertical: false
@@ -32,6 +33,7 @@ Item {
       model: dropdownStripRoot.hostedWidgets
       delegate: HostedWidget {
         bar: dropdownStripRoot.bar
+        barAnchor: dropdownStripRoot.barAnchor
         vertical: dropdownStripRoot.vertical
         onDragStarted: function(entry, mouse) {
           dropdownStripRoot.dragStarted(entry, mouse)

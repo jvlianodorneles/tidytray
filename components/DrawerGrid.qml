@@ -8,6 +8,7 @@ Item {
   id: drawerGridRoot
 
   property var bar: null
+  property Item barAnchor: null
   property var hostedWidgets: []
   property var sniItems: []
   property string searchQuery: ""
@@ -181,6 +182,7 @@ Item {
               HostedWidget {
                 id: hostedWidget
                 bar: drawerGridRoot.bar
+                barAnchor: drawerGridRoot.barAnchor
                 modelData: gridTile.modelData
                 anchors.centerIn: parent
               }
@@ -246,6 +248,7 @@ Item {
 
                 HostedWidget {
                   bar: drawerGridRoot.bar
+                  barAnchor: drawerGridRoot.barAnchor
                   modelData: hostedListRow.modelData
                   anchors.verticalCenter: parent.verticalCenter
                 }

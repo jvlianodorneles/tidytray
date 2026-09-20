@@ -123,6 +123,19 @@ BarWidget {
             })
           }
         }
+        var popoutInfo = null
+        if (drawerBarProxy && drawerBarProxy.activePopout) {
+          var ap = drawerBarProxy.activePopout
+          popoutInfo = {
+            owner: String(ap),
+            anchorItem: ("anchorItem" in ap) ? String(ap.anchorItem) : null,
+            anchorWindow: ("anchorItem" in ap && ap.anchorItem && ap.anchorItem.QsWindow) ? String(ap.anchorItem.QsWindow.window) : null,
+            contentWidth: ("contentWidth" in ap) ? ap.contentWidth : null,
+            contentHeight: ("contentHeight" in ap) ? ap.contentHeight : null,
+            cardOrigin: ("cardOrigin" in ap) ? ap.cardOrigin : null,
+            barH: ("barH" in ap) ? ap.barH : null
+          }
+        }
         return JSON.stringify({
           displayMode: root.displayMode,
           expanded: root.expanded,
@@ -136,7 +149,8 @@ BarWidget {
           drawerVisible: drawerGridPanel ? drawerGridPanel.visible : false,
           drawerTiles: drawerTiles,
           dropdownTiles: dropdownTiles,
-          rowKids: rowKids
+          rowKids: rowKids,
+          popoutInfo: popoutInfo
         })
       } catch (e) {
         return "ERROR: " + e.message + " " + e.stack
@@ -182,20 +196,72 @@ BarWidget {
   QtObject {
     id: drawerBarProxy
     readonly property var hostBar: root.effectiveHostBar
+    readonly property Item barAnchor: indicatorBtn.visible ? indicatorBtn : root
 
     property var activePopout: null
 
+    function fixAnchors(obj) {
+      if (!obj || !barAnchor) return
+      try {
+        if ("anchorItem" in obj && obj.anchorItem !== barAnchor) {
+          obj.anchorItem = barAnchor
+        }
+      } catch (e) {}
+
+      try {
+        if (obj.panelLoader && obj.panelLoader.item) {
+          fixAnchors(obj.panelLoader.item)
+        }
+      } catch (e) {}
+      try {
+        if (obj.panel) {
+          fixAnchors(obj.panel)
+        }
+      } catch (e) {}
+      try {
+        if (obj.popup) {
+          fixAnchors(obj.popup)
+        }
+      } catch (e) {}
+
+      try {
+        if (obj.children) {
+          for (var i = 0; i < obj.children.length; i++) {
+            var child = obj.children[i]
+            if (!child) continue
+            if ("anchorItem" in child && child.anchorItem !== barAnchor) {
+              child.anchorItem = barAnchor
+            }
+            if (child.item) {
+              fixAnchors(child.item)
+            }
+            if (child.children && child.children.length > 0) {
+              fixAnchors(child)
+            }
+          }
+        }
+      } catch (e) {}
+    }
+
     function requestPopout(owner) {
+      fixAnchors(owner)
       if (activePopout === owner) return
       if (activePopout) {
         if ("closeForPopoutSwitch" in activePopout) activePopout.closeForPopoutSwitch()
         else if ("close" in activePopout) activePopout.close()
       }
       activePopout = owner
+      if (hostBar && typeof hostBar.requestPopout === "function") {
+        hostBar.requestPopout(owner)
+      }
+      root.expanded = false
     }
 
     function releasePopout(owner) {
       if (activePopout === owner) activePopout = null
+      if (hostBar && typeof hostBar.releasePopout === "function") {
+        hostBar.releasePopout(owner)
+      }
     }
 
     function closeChildPopouts() {
@@ -779,6 +845,7 @@ BarWidget {
         id: dropdownStrip
         anchors.fill: parent
         bar: drawerBarProxy
+        barAnchor: indicatorBtn.visible ? indicatorBtn : root
         hostedWidgets: root.displayMode === "dropdown" ? root.drawerHostedWidgets : []
         sniItems: root.displayMode === "dropdown" ? root.drawerSniItems : []
         vertical: root.vertical
@@ -820,6 +887,7 @@ BarWidget {
         id: drawerGridComp
         anchors.fill: parent
         bar: drawerBarProxy
+        barAnchor: indicatorBtn.visible ? indicatorBtn : root
         hostedWidgets: root.displayMode === "drawer" ? root.drawerHostedWidgets : []
         sniItems: root.displayMode === "drawer" ? root.drawerSniItems : []
         onOpenSettingsRequested: root.openManage()
