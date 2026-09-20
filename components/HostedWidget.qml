@@ -8,7 +8,7 @@ import "../TrayModel.js" as TrayModel
 Item {
   id: hostedRoot
 
-  property var modelData: null
+  required property var modelData
   property var bar: null
   property bool vertical: false
 
@@ -59,6 +59,7 @@ Item {
   visible: activeItem !== null
 
   onActiveItemChanged: Qt.callLater(injectProps)
+  onEffectiveBarChanged: Qt.callLater(injectProps)
   onWidgetSettingsChanged: injectProps()
 
   function injectProps() {

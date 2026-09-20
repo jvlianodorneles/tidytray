@@ -31,7 +31,6 @@ Item {
       model: dropdownStripRoot.hostedWidgets
       delegate: HostedWidget {
         bar: dropdownStripRoot.bar
-        modelData: modelData
         vertical: dropdownStripRoot.vertical
         onDragStarted: function(entry, mouse) {
           dropdownStripRoot.dragStarted(entry, mouse)
@@ -44,7 +43,6 @@ Item {
       model: dropdownStripRoot.sniItems
       delegate: SnItemDelegate {
         bar: dropdownStripRoot.bar
-        modelData: modelData
         vertical: dropdownStripRoot.vertical
         onRequestMenu: function(item, target, mouse) {
           dropdownStripRoot.sniMenuRequested(item, target, mouse)

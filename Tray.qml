@@ -42,6 +42,40 @@ BarWidget {
     }
   }
 
+  IpcHandler {
+    target: "tidytray"
+    function status(): string {
+      var kids = []
+      for (var i = 0; i < inlineContentRow.children.length; i++) {
+        var c = inlineContentRow.children[i]
+        kids.push({
+          type: String(c),
+          widgetId: c.widgetId,
+          effectiveBar: String(c.effectiveBar),
+          registryComponent: String(c.registryComponent),
+          activeItem: String(c.activeItem),
+          modelData: c.modelData ? (c.modelData.id || (c.modelData.entry ? c.modelData.entry.id : null) || c.modelData) : null,
+          status: c.modelData && "status" in c.modelData ? c.modelData.status : null,
+          isVisible: c.isVisible,
+          implicitWidth: c.implicitWidth,
+          implicitHeight: c.implicitHeight,
+          visible: c.visible
+        })
+      }
+      return JSON.stringify({
+        displayMode: root.displayMode,
+        expanded: root.expanded,
+        drawerHostedCount: root.drawerHostedWidgets.length,
+        drawerSniCount: root.drawerSniItems.length,
+        effectiveHostBar: String(root.effectiveHostBar),
+        children: kids
+      })
+    }
+    function toggle(): void { root.toggle() }
+    function expand(): void { root.expand() }
+    function collapse(): void { root.collapse() }
+  }
+
   QtObject {
     id: manageController
     function close() {
@@ -508,7 +542,6 @@ BarWidget {
           model: root.pinnedHostedWidgets
           delegate: HostedWidget {
             bar: root.effectiveHostBar
-            modelData: modelData
             vertical: root.vertical
           }
         }
@@ -517,7 +550,6 @@ BarWidget {
           model: root.pinnedSniItems
           delegate: SnItemDelegate {
             bar: root.effectiveHostBar
-            modelData: modelData
             vertical: root.vertical
             onRequestMenu: function(item, target, mouse) {
               root.openTrayMenu(item, target, mouse)
@@ -575,7 +607,6 @@ BarWidget {
             model: root.drawerHostedWidgets
             delegate: HostedWidget {
               bar: root.effectiveHostBar
-              modelData: modelData
               vertical: root.vertical
             }
           }
@@ -584,7 +615,6 @@ BarWidget {
             model: root.drawerSniItems
             delegate: SnItemDelegate {
               bar: root.effectiveHostBar
-              modelData: modelData
               vertical: root.vertical
               onRequestMenu: function(item, target, mouse) {
                 root.openTrayMenu(item, target, mouse)

@@ -9,7 +9,7 @@ import qs.Ui
 Item {
   id: snItemRoot
 
-  property var modelData: null
+  required property var modelData
   property var bar: null
   property color foregroundColor: bar ? bar.foreground : Color.foreground
   property int iconExtent: Style.bar.iconSlot
