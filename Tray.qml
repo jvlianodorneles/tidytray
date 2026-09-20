@@ -35,6 +35,45 @@ BarWidget {
   property bool expanded: false
   property bool manageOpen: false
 
+  onManageOpenChanged: {
+    if (managePopup && managePopup.open !== manageOpen) {
+      managePopup.open = manageOpen
+    }
+  }
+
+  QtObject {
+    id: manageController
+    function close() {
+      root.manageOpen = false
+      if (managePopup) managePopup.open = false
+    }
+  }
+
+  QtObject {
+    id: dropdownController
+    function close() {
+      root.expanded = false
+      if (dropdownPanel) dropdownPanel.open = false
+    }
+  }
+
+  QtObject {
+    id: drawerController
+    function close() {
+      root.expanded = false
+      if (drawerGridPanel) drawerGridPanel.open = false
+    }
+  }
+
+  QtObject {
+    id: menuController
+    function close() {
+      root.trayMenuOpen = false
+      if (trayMenuPanel) trayMenuPanel.open = false
+      root.resetTrayMenu()
+    }
+  }
+
   readonly property bool vertical: root.bar ? root.bar.vertical : false
   readonly property int barSize: root.bar ? root.bar.barSize : Style.bar.sizeHorizontal
 
@@ -127,34 +166,119 @@ BarWidget {
   }
 
   // ---------------------------------------------------------------------------
-  // Mutate Config Helper
+  // Mutate Config Helper & Atomic Script Fallback
   // ---------------------------------------------------------------------------
-  function mutateConfig(callback) {
+  Component {
+    id: helperProcessComp
+    Process {
+      id: proc
+      property var onFinished: null
+      onExited: function(exitCode) {
+        if (typeof onFinished === "function") {
+          onFinished(exitCode === 0)
+        }
+        proc.destroy()
+      }
+    }
+  }
+
+  function runHelper(action, args, callback) {
+    var scriptPath = Qt.resolvedUrl("scripts/config-helper.py").toString().replace(/^file:\/\//, "")
+    var fullCmd = [scriptPath, action].concat(args || [])
+    var proc = helperProcessComp.createObject(root, {
+      command: fullCmd,
+      onFinished: callback
+    })
+    if (proc) {
+      proc.running = true
+    }
+  }
+
+  function captureWidget(sourceId) {
+    if (!sourceId) return
+    var ok = false
     if (root.bar && root.bar.shell && typeof root.bar.shell.mutateShellConfig === "function") {
-      root.bar.shell.mutateShellConfig(callback)
+      try {
+        root.bar.shell.mutateShellConfig(function(config) {
+          TrayModel.captureIntoTray(config, root.moduleName, sourceId)
+        })
+        ok = true
+      } catch (e) {
+        console.warn("[tidytray] mutateShellConfig capture failed:", e)
+      }
+    }
+    if (!ok) {
+      runHelper("capture", [root.moduleName, sourceId])
+    }
+  }
+
+  function releaseWidget(widgetId) {
+    if (!widgetId) return
+    var ok = false
+    if (root.bar && root.bar.shell && typeof root.bar.shell.mutateShellConfig === "function") {
+      try {
+        root.bar.shell.mutateShellConfig(function(config) {
+          TrayModel.releaseFromTray(config, root.moduleName, widgetId)
+        })
+        ok = true
+      } catch (e) {
+        console.warn("[tidytray] mutateShellConfig release failed:", e)
+      }
+    }
+    if (!ok) {
+      runHelper("release", [root.moduleName, widgetId])
+    }
+  }
+
+  function reorderHostedWidget(fromIndex, toIndex) {
+    var ok = false
+    if (root.bar && root.bar.shell && typeof root.bar.shell.mutateShellConfig === "function") {
+      try {
+        root.bar.shell.mutateShellConfig(function(config) {
+          TrayModel.reorderTrayWidgets(config, root.moduleName, fromIndex, toIndex)
+        })
+        ok = true
+      } catch (e) {
+        console.warn("[tidytray] mutateShellConfig reorder failed:", e)
+      }
+    }
+    if (!ok) {
+      runHelper("reorder", [root.moduleName, String(fromIndex), String(toIndex)])
     }
   }
 
   function saveSettings(newSettings) {
-    mutateConfig(function(config) {
-      var found = TrayModel.findLayoutEntry(config.bar.layout, root.moduleName)
-      if (found && found.entry) {
-        if (typeof found.entry === "string") {
-          found.entry = { id: found.entry }
-          found.entries[found.index] = found.entry
-        }
-        for (var key in newSettings) {
-          found.entry[key] = newSettings[key]
-        }
+    var ok = false
+    if (root.bar && root.bar.shell && typeof root.bar.shell.mutateShellConfig === "function") {
+      try {
+        root.bar.shell.mutateShellConfig(function(config) {
+          var found = TrayModel.findLayoutEntry(config.bar.layout, root.moduleName)
+          if (found && found.entry) {
+            if (typeof found.entry === "string") {
+              found.entry = { id: found.entry }
+              found.entries[found.index] = found.entry
+            }
+            for (var key in newSettings) {
+              found.entry[key] = newSettings[key]
+            }
+          }
+        })
+        ok = true
+      } catch (e) {
+        console.warn("[tidytray] mutateShellConfig saveSettings failed:", e)
       }
-    })
+    }
+    if (!ok) {
+      runHelper("save-settings", [root.moduleName, JSON.stringify(newSettings)])
+    }
   }
 
   // ---------------------------------------------------------------------------
   // Drag & Drop Handling (Native Omarchy Bar Drag)
   // ---------------------------------------------------------------------------
   property bool caretActive: false
-  property string dropArmedId: ""
+  property bool dragOver: false
+  property string currentDraggedId: ""
 
   readonly property bool isBarDragging: root.bar && "barDragSource" in root.bar && root.bar.barDragSource !== null
   readonly property string draggedModuleId: {
@@ -164,15 +288,65 @@ BarWidget {
     return (mId && mId !== root.moduleName) ? mId : ""
   }
 
-  readonly property var activeBarDragSource: root.bar ? root.bar.barDragSource : null
-  onActiveBarDragSourceChanged: {
-    if (!activeBarDragSource && root.dropArmedId) {
-      var sourceId = root.dropArmedId
-      root.dropArmedId = ""
-      root.caretActive = false
-      root.mutateConfig(function(config) {
-        TrayModel.captureIntoTray(config, root.moduleName, sourceId)
-      })
+  function checkDragHit() {
+    if (!root.bar || !root.bar.barDragSource || !root.currentDraggedId) {
+      if (dragOver) dragOver = false
+      if (caretActive) caretActive = false
+      return
+    }
+    var sx = root.bar.barDragSceneX
+    var sy = root.bar.barDragSceneY
+    var targetItem = (indicatorBtn && indicatorBtn.visible) ? indicatorBtn : root
+    var origin = { x: 0, y: 0 }
+    try {
+      origin = targetItem.mapToItem(null, 0, 0)
+    } catch (e) {
+      return
+    }
+    var pad = 6
+    var inside = (sx >= origin.x - pad && sx <= origin.x + targetItem.width + pad &&
+                  sy >= origin.y - pad && sy <= origin.y + targetItem.height + pad)
+    if (inside) {
+      dragOver = true
+      caretActive = true
+      if (root.bar) {
+        root.bar.barDragTarget = null
+        root.bar.barDragTargetGeometry = null
+      }
+    } else {
+      dragOver = false
+      caretActive = false
+    }
+  }
+
+  Connections {
+    target: root.bar
+    ignoreUnknownSignals: true
+
+    function onBarDragSceneXChanged() { root.checkDragHit() }
+    function onBarDragSceneYChanged() { root.checkDragHit() }
+    function onBarDragSourceChanged() {
+      var src = root.bar ? root.bar.barDragSource : null
+      if (src) {
+        var mId = String(src.moduleName || "")
+        if (mId && mId !== root.moduleName) {
+          root.currentDraggedId = mId
+        }
+      } else {
+        if (root.dragOver && root.currentDraggedId) {
+          var idToCapture = root.currentDraggedId
+          root.dragOver = false
+          root.caretActive = false
+          root.currentDraggedId = ""
+          Qt.callLater(function() {
+            root.captureWidget(idToCapture)
+          })
+        } else {
+          root.dragOver = false
+          root.caretActive = false
+          root.currentDraggedId = ""
+        }
+      }
     }
   }
 
@@ -247,6 +421,7 @@ BarWidget {
       // 3. Indicator Button (Chevron / Dot / Plus)
       IndicatorButton {
         id: indicatorBtn
+        dragOver: root.dragOver
         expanded: root.expanded
         vertical: root.vertical
         indicatorIcon: root.indicatorIcon
@@ -324,7 +499,7 @@ BarWidget {
   KeyboardPanel {
     id: dropdownPanel
     anchorItem: indicatorBtn.visible ? indicatorBtn : root
-    owner: root
+    owner: dropdownController
     bar: root.bar
     open: root.displayMode === "dropdown" && root.expanded && !root.manageOpen
     focusTarget: dropdownKeyCatcher
@@ -361,7 +536,7 @@ BarWidget {
   KeyboardPanel {
     id: drawerGridPanel
     anchorItem: indicatorBtn.visible ? indicatorBtn : root
-    owner: root
+    owner: drawerController
     bar: root.bar
     open: root.displayMode === "drawer" && root.expanded && !root.manageOpen
     focusTarget: drawerKeyCatcher
@@ -396,19 +571,31 @@ BarWidget {
   // Management Hub Popup
   // ---------------------------------------------------------------------------
   function openManage() {
-    manageOpen = true
+    if (manageOpen) {
+      manageOpen = false
+      if (managePopup) managePopup.open = false
+    } else {
+      manageOpen = true
+      if (managePopup) managePopup.open = true
+    }
   }
 
   KeyboardPanel {
     id: managePopup
     anchorItem: indicatorBtn.visible ? indicatorBtn : root
-    owner: root
+    owner: manageController
     bar: root.bar
     open: root.manageOpen
     focusTarget: manageKeyCatcher
 
     contentWidth: managePopup.fittedContentWidth(Style.space(380))
     contentHeight: managePopup.fittedContentHeight(manageComp.neededHeight, Style.space(560))
+
+    onOpenChanged: {
+      if (root.manageOpen !== open) {
+        root.manageOpen = open
+      }
+    }
 
     PanelKeyCatcher {
       id: manageKeyCatcher
@@ -436,15 +623,14 @@ BarWidget {
           var res = TrayModel.toggleBucketId(root.pinnedIds, root.hiddenIds, wId, "hidden")
           root.saveSettings({ pinned: res.pinned, hidden: res.hidden })
         }
+        onReorderWidget: function(fromIdx, toIdx) {
+          root.reorderHostedWidget(fromIdx, toIdx)
+        }
         onReleaseWidget: function(wId) {
-          root.mutateConfig(function(config) {
-            TrayModel.releaseFromTray(config, root.moduleName, wId)
-          })
+          root.releaseWidget(wId)
         }
         onCaptureWidget: function(wId) {
-          root.mutateConfig(function(config) {
-            TrayModel.captureIntoTray(config, root.moduleName, wId)
-          })
+          root.captureWidget(wId)
         }
         onTogglePinnedSni: function(sId) {
           var res = TrayModel.toggleBucketId(root.pinnedIds, root.hiddenIds, sId, "pinned")
@@ -515,7 +701,7 @@ BarWidget {
   KeyboardPanel {
     id: trayMenuPanel
     anchorItem: root.activeTrayAnchor || root
-    owner: root
+    owner: menuController
     bar: root.bar
     open: root.trayMenuOpen
     focusTarget: menuKeyCatcher
@@ -524,7 +710,10 @@ BarWidget {
     contentHeight: trayMenuPanel.fittedContentHeight(menuListCol.implicitHeight, Style.space(360))
 
     onOpenChanged: {
-      if (!open) root.resetTrayMenu()
+      if (!open) {
+        root.trayMenuOpen = false
+        root.resetTrayMenu()
+      }
     }
 
     PanelKeyCatcher {

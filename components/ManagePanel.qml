@@ -22,6 +22,7 @@ Item {
   signal captureWidget(string id)
   signal togglePinnedSni(string id)
   signal toggleHiddenSni(string id)
+  signal reorderWidget(int fromIndex, int toIndex)
 
   function fade(c, amount) {
     var bg = Color.background
@@ -42,18 +43,20 @@ Item {
   readonly property bool isEditing: searchField.activeFocus
   readonly property int neededHeight: contentColumn.implicitHeight + Style.space(12)
 
-  // Bar widgets currently on this bar section (candidates to be tucked into TidyTray)
+  // Bar widgets currently on any bar section (candidates to be tucked into TidyTray)
   readonly property var candidateBarWidgets: {
     var layout = manageRoot.bar && manageRoot.bar.layoutConfig ? manageRoot.bar.layoutConfig : null
     if (!layout) return []
-    var secName = TrayModel.layoutSectionFor(layout, "io.github.jvlianodorneles.tidytray") || "right"
-    var entries = layout[secName]
-    if (!Array.isArray(entries)) return []
     var out = []
-    for (var i = 0; i < entries.length; i++) {
-      var id = TrayModel.entryId(entries[i])
-      if (!id || id === "io.github.jvlianodorneles.tidytray" || id === "omarchy.tray") continue
-      out.push({ id: id })
+    var sections = ["right", "center", "left"]
+    for (var s = 0; s < sections.length; s++) {
+      var entries = layout[sections[s]]
+      if (!Array.isArray(entries)) continue
+      for (var i = 0; i < entries.length; i++) {
+        var id = TrayModel.entryId(entries[i])
+        if (!id || id === "io.github.jvlianodorneles.tidytray" || id === "omarchy.tray") continue
+        out.push({ id: id, section: sections[s] })
+      }
     }
     return out
   }
@@ -266,11 +269,12 @@ Item {
             visible: manageRoot.hostedWidgets.length > 0
           }
 
-          Repeater {
+            Repeater {
             model: manageRoot.hostedWidgets
             delegate: Rectangle {
               id: widgetRowDelegate
               required property var modelData
+              required property int index
               readonly property string wId: TrayModel.wrapperId(modelData)
               readonly property bool isPinned: manageRoot.pinnedIds.indexOf(wId) !== -1
               readonly property bool isHidden: manageRoot.hiddenIds.indexOf(wId) !== -1
@@ -318,12 +322,64 @@ Item {
                   }
                 }
 
-                // Actions: Pin / Hide / Eject
+                // Actions: Move Up / Move Down / Pin / Hide / Eject
                 Row {
                   id: widgetActionsRow
                   anchors.right: parent.right
                   anchors.verticalCenter: parent.verticalCenter
                   spacing: 4
+
+                  // Move Up
+                  Rectangle {
+                    width: 24
+                    height: 24
+                    radius: 4
+                    color: "transparent"
+                    border.color: widgetRowDelegate.index > 0 ? manageRoot.mutedColor : "transparent"
+                    border.width: widgetRowDelegate.index > 0 ? 1 : 0
+                    visible: widgetRowDelegate.index > 0
+
+                    Text {
+                      anchors.centerIn: parent
+                      text: "\uf077" // chevron-up
+                      textFormat: Text.PlainText
+                      renderType: Text.NativeRendering
+                      font.family: Style.font.family
+                      font.pixelSize: Style.font.caption
+                      color: manageRoot.mutedColor
+                    }
+                    MouseArea {
+                      anchors.fill: parent
+                      cursorShape: Qt.PointingHandCursor
+                      onClicked: manageRoot.reorderWidget(widgetRowDelegate.index, widgetRowDelegate.index - 1)
+                    }
+                  }
+
+                  // Move Down
+                  Rectangle {
+                    width: 24
+                    height: 24
+                    radius: 4
+                    color: "transparent"
+                    border.color: widgetRowDelegate.index < manageRoot.hostedWidgets.length - 1 ? manageRoot.mutedColor : "transparent"
+                    border.width: widgetRowDelegate.index < manageRoot.hostedWidgets.length - 1 ? 1 : 0
+                    visible: widgetRowDelegate.index < manageRoot.hostedWidgets.length - 1
+
+                    Text {
+                      anchors.centerIn: parent
+                      text: "\uf078" // chevron-down
+                      textFormat: Text.PlainText
+                      renderType: Text.NativeRendering
+                      font.family: Style.font.family
+                      font.pixelSize: Style.font.caption
+                      color: manageRoot.mutedColor
+                    }
+                    MouseArea {
+                      anchors.fill: parent
+                      cursorShape: Qt.PointingHandCursor
+                      onClicked: manageRoot.reorderWidget(widgetRowDelegate.index, widgetRowDelegate.index + 1)
+                    }
+                  }
 
                   // Pin toggle
                   Rectangle {

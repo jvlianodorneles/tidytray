@@ -9,6 +9,7 @@ Item {
 
   property bool expanded: false
   property bool vertical: false
+  property bool dragOver: false
   property string indicatorIcon: "chevron" // chevron, dot, dots, plus, none
   property string triggerMode: "click"     // click, hover
   property int duration: 200
@@ -29,9 +30,9 @@ Item {
     width: Style.bar.iconCanvas + Style.space(6)
     height: Style.bar.iconCanvas + Style.space(6)
     radius: Style.cornerRadius
-    color: mouseArea.containsMouse ? Style.hoverFill : "transparent"
-    border.color: mouseArea.containsMouse ? Style.hoverBorderColor : "transparent"
-    border.width: mouseArea.containsMouse ? 1 : 0
+    color: (mouseArea.containsMouse || indicatorRoot.dragOver) ? Style.hoverFill : "transparent"
+    border.color: indicatorRoot.dragOver ? Color.accent : (mouseArea.containsMouse ? Style.hoverBorderColor : "transparent")
+    border.width: (indicatorRoot.dragOver || mouseArea.containsMouse) ? 1 : 0
 
     Behavior on color { ColorAnimation { duration: 120 } }
     Behavior on border.color { ColorAnimation { duration: 120 } }
