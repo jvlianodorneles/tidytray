@@ -421,9 +421,9 @@ BarWidget {
       // 3. Indicator Button (Chevron / Dot / Plus)
       IndicatorButton {
         id: indicatorBtn
+        bar: root.bar
         dragOver: root.dragOver
         expanded: root.expanded
-        vertical: root.vertical
         indicatorIcon: root.indicatorIcon
         triggerMode: root.triggerMode
         duration: root.revealDuration
@@ -432,20 +432,6 @@ BarWidget {
 
         onToggleRequested: root.toggle()
         onRightClicked: root.openManage()
-        onHoverEntered: {
-          if (root.isBarDragging && root.draggedModuleId) {
-            root.dropArmedId = root.draggedModuleId
-            root.caretActive = true
-          }
-          if (root.triggerMode === "hover" && !root.expanded) {
-            root.expand()
-          }
-        }
-        onHoverExited: {
-          if (!mouseOverTray.containsMouse) {
-            root.caretActive = false
-          }
-        }
       }
 
       // 4. Inline Drawer Container (Smooth Slide-out Animation)

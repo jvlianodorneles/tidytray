@@ -8,8 +8,7 @@
   "homepage": "https://github.com/jvlianodorneles/tidytray",
   "description": "The ultimate unified tray and bar organizer for Omarchy: manage system tray items and bar widgets with 4 display modes, drag-and-drop, and full keyboard navigation.",
   "kinds": [
-    "bar-widget",
-    "bar"
+    "bar-widget"
   ],
   "entryPoints": {
     "barWidget": "Tray.qml"

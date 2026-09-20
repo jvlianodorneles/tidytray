@@ -70,6 +70,21 @@ function normalizeIndicatorIcon(value) {
   return INDICATOR_ICONS.indexOf(icon) !== -1 ? icon : "chevron"
 }
 
+function chevronGlyph(icon, vertical) {
+  switch (String(icon || "").toLowerCase()) {
+    case "caret": return vertical ? "\uf0d7" : "\uf0d9";
+    case "angle": return vertical ? "\uf107" : "\uf104";
+    case "arrow": return vertical ? "\uf063" : "\uf060";
+    case "double": return vertical ? "\uf103" : "\uf100";
+    case "dot": return "\ueb8a";
+    case "dots": return "\uf141";
+    case "plus": return "\uf067";
+    case "chevron":
+    default:
+      return vertical ? "\uf078" : "\uf053";
+  }
+}
+
 function normalizeRehideSeconds(value) {
   var n = Math.round(Number(value))
   if (!isFinite(n) || n < 0) return 0
@@ -384,6 +399,7 @@ if (typeof module !== "undefined" && module.exports) {
     normalizeDisplayMode: normalizeDisplayMode,
     normalizeTrigger: normalizeTrigger,
     normalizeIndicatorIcon: normalizeIndicatorIcon,
+    chevronGlyph: chevronGlyph,
     normalizeRehideSeconds: normalizeRehideSeconds,
     normalizeDuration: normalizeDuration,
     layoutHasWidget: layoutHasWidget,
