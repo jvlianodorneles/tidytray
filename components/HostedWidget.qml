@@ -48,15 +48,15 @@ Item {
   readonly property int fallbackSize: Style.bar.iconSlot
   readonly property int defaultBarSize: effectiveBar ? effectiveBar.barSize : Style.bar.sizeHorizontal
 
-  implicitWidth: activeItem && activeItem.visible
+  implicitWidth: activeItem
     ? (hostedRoot.vertical ? defaultBarSize : Math.max(fallbackSize, activeItem.implicitWidth || 0))
     : 0
-  implicitHeight: activeItem && activeItem.visible
+  implicitHeight: activeItem
     ? (hostedRoot.vertical ? Math.max(fallbackSize, activeItem.implicitHeight || 0) : defaultBarSize)
     : 0
   width: implicitWidth
   height: implicitHeight
-  visible: activeItem ? activeItem.visible : false
+  visible: activeItem !== null
 
   onActiveItemChanged: Qt.callLater(injectProps)
   onWidgetSettingsChanged: injectProps()

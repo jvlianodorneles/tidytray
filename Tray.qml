@@ -175,6 +175,8 @@ BarWidget {
 
   property var hostBar: root.bar
 
+  readonly property var effectiveHostBar: (hostBar && isRealHostBar(hostBar)) ? hostBar : bar
+
   function isRealHostBar(b) {
     return b !== null && b !== undefined && typeof b === "object" && "barWidgetRegistry" in b
   }
@@ -195,13 +197,10 @@ BarWidget {
   function setBar(b) {
     if (!b) return
     root.hostBar = b
-    if (root.facadeBar) {
-      root.bar = b
-    }
   }
 
   function adoptHostBar() {
-    if (!facadeBar && isRealHostBar(hostBar)) return
+    if (isRealHostBar(hostBar)) return
     var p = root.parent
     while (p) {
       if (isRealHostBar(p)) {
@@ -253,7 +252,7 @@ BarWidget {
   Timer {
     interval: 200
     repeat: true
-    running: root.facadeBar && root.adoptAttempts < 40
+    running: !root.isRealHostBar(root.hostBar) && root.adoptAttempts < 40
     onTriggered: {
       root.adoptAttempts += 1
       root.adoptHostBar()
@@ -508,7 +507,7 @@ BarWidget {
         Repeater {
           model: root.pinnedHostedWidgets
           delegate: HostedWidget {
-            bar: (root.hostBar || root.bar)
+            bar: root.effectiveHostBar
             modelData: modelData
             vertical: root.vertical
           }
@@ -517,7 +516,7 @@ BarWidget {
         Repeater {
           model: root.pinnedSniItems
           delegate: SnItemDelegate {
-            bar: (root.hostBar || root.bar)
+            bar: root.effectiveHostBar
             modelData: modelData
             vertical: root.vertical
             onRequestMenu: function(item, target, mouse) {
@@ -538,7 +537,7 @@ BarWidget {
       // 3. Indicator Button (Chevron / Dot / Plus)
       IndicatorButton {
         id: indicatorBtn
-        bar: (root.hostBar || root.bar)
+        bar: root.effectiveHostBar
         dragOver: root.dragOver
         expanded: root.expanded
         indicatorIcon: root.indicatorIcon
@@ -575,7 +574,7 @@ BarWidget {
           Repeater {
             model: root.drawerHostedWidgets
             delegate: HostedWidget {
-              bar: (root.hostBar || root.bar)
+              bar: root.effectiveHostBar
               modelData: modelData
               vertical: root.vertical
             }
@@ -584,7 +583,7 @@ BarWidget {
           Repeater {
             model: root.drawerSniItems
             delegate: SnItemDelegate {
-              bar: (root.hostBar || root.bar)
+              bar: root.effectiveHostBar
               modelData: modelData
               vertical: root.vertical
               onRequestMenu: function(item, target, mouse) {
@@ -604,7 +603,7 @@ BarWidget {
     id: dropdownPanel
     anchorItem: indicatorBtn.visible ? indicatorBtn : root
     owner: dropdownController
-    bar: (root.hostBar || root.bar)
+    bar: root.effectiveHostBar
     open: root.displayMode === "dropdown" && root.expanded && !root.manageOpen
     focusTarget: dropdownKeyCatcher
 
@@ -623,7 +622,7 @@ BarWidget {
       DropdownStrip {
         id: dropdownStrip
         anchors.fill: parent
-        bar: (root.hostBar || root.bar)
+        bar: root.effectiveHostBar
         hostedWidgets: root.drawerHostedWidgets
         sniItems: root.drawerSniItems
         vertical: root.vertical
@@ -641,7 +640,7 @@ BarWidget {
     id: drawerGridPanel
     anchorItem: indicatorBtn.visible ? indicatorBtn : root
     owner: drawerController
-    bar: (root.hostBar || root.bar)
+    bar: root.effectiveHostBar
     open: root.displayMode === "drawer" && root.expanded && !root.manageOpen
     focusTarget: drawerKeyCatcher
 
@@ -660,7 +659,7 @@ BarWidget {
       DrawerGrid {
         id: drawerGridComp
         anchors.fill: parent
-        bar: (root.hostBar || root.bar)
+        bar: root.effectiveHostBar
         hostedWidgets: root.drawerHostedWidgets
         sniItems: root.drawerSniItems
         onOpenSettingsRequested: root.openManage()
@@ -688,7 +687,7 @@ BarWidget {
     id: managePopup
     anchorItem: indicatorBtn.visible ? indicatorBtn : root
     owner: manageController
-    bar: (root.hostBar || root.bar)
+    bar: root.effectiveHostBar
     open: root.manageOpen
     focusTarget: manageKeyCatcher
 
@@ -710,7 +709,7 @@ BarWidget {
       ManagePanel {
         id: manageComp
         anchors.fill: parent
-        bar: (root.hostBar || root.bar)
+        bar: root.effectiveHostBar
         currentSettings: root.activeSettings
         hostedWidgets: root.configuredWidgets
         sniItems: root.allSniItems
@@ -806,7 +805,7 @@ BarWidget {
     id: trayMenuPanel
     anchorItem: root.activeTrayAnchor || root
     owner: menuController
-    bar: (root.hostBar || root.bar)
+    bar: root.effectiveHostBar
     open: root.trayMenuOpen
     focusTarget: menuKeyCatcher
 
