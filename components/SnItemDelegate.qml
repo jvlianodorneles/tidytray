@@ -132,6 +132,8 @@ Item {
     onWheel: function(wheel) {
       if (snItemRoot.modelData && typeof snItemRoot.modelData.scroll === "function") {
         snItemRoot.modelData.scroll(wheel.angleDelta.y, false)
+      } else {
+        wheel.accepted = false
       }
     }
 
