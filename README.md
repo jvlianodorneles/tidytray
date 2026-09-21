@@ -14,18 +14,17 @@ TidyTray synthesizes the best architectural ideas and UX conventions from 7 lead
 
 ## Features
 
-### 1. Four Presentation Modes
+### 1. Three Presentation Modes
 Tailor how TidyTray fits your desktop workflow:
 - **`inline` (Slide-out)**: Slides out smoothly along the bar beside the indicator using cubic easing (`Easing.OutCubic`). Ideal when placed at the edge of the bar (e.g. first item on the right or last on the left).
-- **`dropdown` (Floating Strip)**: Reveals items in a compact floating strip docked directly beneath the bar. **Zero bar shifting** — clock, workspaces, and media widgets stay completely still.
-- **`drawer` (Card Popout)**: Opens an interactive card featuring instant search, badge metrics, and quick switching between Icon Grid and Detailed List views.
-- **`flat` (Full Visibility)**: Unfolds all icons and widgets directly into the bar row. The indicator button automatically hides when no items are tucked away.
+- **`dropdown` (Floating Strip)**: Reveals items in a compact floating strip docked directly beneath the bar. **Zero bar shifting** — clock, workspaces, and media widgets stay completely still. Features smooth mouse wheel scrolling and subtle edge fade indicators when items exceed screen bounds.
+- **`drawer` (Card Popout)**: Opens an interactive card featuring instant search, badge metrics, scrollable content area, and quick switching between Icon Grid and Detailed List views.
 
 ```text
 INLINE MODE:    [ Pinned ] [ > ] [ App1 ] [ App2 ] [ App3 ]  (slides out on bar)
 DROPDOWN MODE:  [ Pinned ] [ v ]
                            +---------------------------+
-                           |  App1   App2   App3   ... |  (floats under bar)
+                           |  App1   App2   App3   ... |  (floats under bar with wheel scroll)
                            +---------------------------+
 DRAWER MODE:    [ Pinned ] [ v ]
                            +---------------------------+
@@ -33,7 +32,6 @@ DRAWER MODE:    [ Pinned ] [ v ]
                            | (::) Grid    (=) List     |
                            | [Icon] App1   [Icon] App2 |
                            +---------------------------+
-FLAT MODE:      [ Pinned ] [ App1 ] [ App2 ] [ App3 ]        (always visible, no chevron)
 ```
 
 ### 2. Dual-Domain First-Class Citizens (SNI + Bar Widgets)
@@ -46,13 +44,18 @@ FLAT MODE:      [ Pinned ] [ App1 ] [ App2 ] [ App3 ]        (always visible, no
 - **Restore to Bar**: Drag a widget out of TidyTray back onto the bar to release it.
 
 ### 4. Management Hub with 3D Card Flip
-- Right-click the indicator button or press `s` to trigger a **3D perspective card flip**.
-- On the back:
-  - Instant search across all installed plugins and tray apps.
-  - 1-click toggles to Pin, Hide, or Eject items.
-  - Real-time display mode switcher.
-  - Indicator style selector (`chevron`, `dot`, `dots`, `plus`, `none`).
-  - Auto-hide countdown slider (`rehideSeconds`).
+- Right-click the indicator button or press `s` to open the Management Hub.
+- Experience a **3D perspective card flip** (`Matrix4x4` projection with pull-back scaling) when switching between **Items** and **Settings** (click tabs or press `s` to flip):
+  - **Front (Items)**:
+    - Instant search across all installed plugins and tray apps.
+    - 1-click toggles to Pin, Hide, or Eject items.
+    - Drag handles and up/down buttons to reorder widgets.
+  - **Back (Settings)**:
+    - Real-time display mode switcher (`inline`, `dropdown`, `drawer`).
+    - Open trigger selector (`click`, `hover`).
+    - Indicator style selector (`chevron`, `dot`, `dots`, `plus`).
+    - Auto-hide countdown slider (`rehideSeconds`, 0 = Off to 60s).
+    - Smart deduplication toggle.
 
 ### 5. Wayland Keyboard-First
 Fully operable without touching the mouse:

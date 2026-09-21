@@ -39,6 +39,15 @@ Item {
 
   property string searchQuery: ""
   property string activeTab: "items" // "items" or "config"
+  property real flipAngle: activeTab === "config" ? 180 : 0
+  readonly property real flipScale: 1 - 0.16 * Math.abs(Math.sin(flipAngle * Math.PI / 180))
+
+  Behavior on flipAngle {
+    NumberAnimation {
+      duration: 380
+      easing.type: Easing.InOutCubic
+    }
+  }
 
   readonly property bool isEditing: searchField.activeFocus
   readonly property int neededHeight: contentColumn.implicitHeight + Style.space(12)
@@ -187,11 +196,35 @@ Item {
       color: manageRoot.surfaceAlt
     }
 
-    // TAB 1: ITEMS MANAGEMENT
-    Column {
+    // 3D Perspective Card Flip Body Container
+    Item {
+      id: flipContainer
       width: parent.width
-      spacing: Style.space(8)
-      visible: manageRoot.activeTab === "items"
+      implicitHeight: Math.max(itemsTabCol.implicitHeight, configTabCol.implicitHeight)
+
+      transform: [
+        Translate { x: -flipContainer.width / 2; y: -flipContainer.height / 2 },
+        Scale { xScale: manageRoot.flipScale; yScale: manageRoot.flipScale },
+        Rotation {
+          axis.x: 0; axis.y: 1; axis.z: 0
+          angle: manageRoot.flipAngle
+        },
+        Matrix4x4 {
+          matrix: Qt.matrix4x4(1, 0, 0,       0,
+                               0, 1, 0,       0,
+                               0, 0, 1,       0,
+                               0, 0, -0.0009, 1)
+        },
+        Translate { x: flipContainer.width / 2; y: flipContainer.height / 2 }
+      ]
+
+      // Face 1: TAB 1: ITEMS MANAGEMENT (Front)
+      Column {
+        id: itemsTabCol
+        width: parent.width
+        spacing: Style.space(8)
+        visible: manageRoot.flipAngle < 90
+        enabled: manageRoot.activeTab === "items"
 
       // Search field
       Rectangle {
@@ -729,11 +762,21 @@ Item {
       }
     }
 
-    // TAB 2: CONFIGURATION
-    Column {
-      width: parent.width
-      spacing: Style.space(10)
-      visible: manageRoot.activeTab === "config"
+      // Face 2: TAB 2: CONFIGURATION (Back)
+      Column {
+        id: configTabCol
+        width: parent.width
+        spacing: Style.space(10)
+        visible: manageRoot.flipAngle >= 90
+        enabled: manageRoot.activeTab === "config"
+        transform: [
+          Translate { x: -configTabCol.width / 2; y: -configTabCol.height / 2 },
+          Rotation {
+            axis.x: 0; axis.y: 1; axis.z: 0
+            angle: 180
+          },
+          Translate { x: configTabCol.width / 2; y: configTabCol.height / 2 }
+        ]
 
       // 1. Display Mode
       Text {
@@ -919,7 +962,52 @@ Item {
         }
       }
 
-      // 4. Deduplication
+      // 4. Auto-Hide Timeout
+      Text {
+        text: "AUTO-HIDE TIMEOUT"
+        textFormat: Text.PlainText
+        renderType: Text.NativeRendering
+        font.family: Style.font.family
+        font.pixelSize: Style.font.caption
+        font.bold: true
+        color: manageRoot.mutedColor
+      }
+
+      Row {
+        width: parent.width
+        spacing: 10
+
+        PanelSlider {
+          id: rehideSlider
+          width: parent.width - 64
+          anchors.verticalCenter: parent.verticalCenter
+          bar: manageRoot.bar
+          minimum: 0
+          maximum: 60
+          step: 5
+          integer: true
+          value: manageRoot.currentSettings.rehideSeconds !== undefined ? Number(manageRoot.currentSettings.rehideSeconds) : 0
+          onReleased: function(v) {
+            var copy = Object.assign({}, manageRoot.currentSettings)
+            copy.rehideSeconds = Math.round(v)
+            manageRoot.updateSettingsRequested(copy)
+          }
+        }
+
+        Text {
+          width: 54
+          anchors.verticalCenter: parent.verticalCenter
+          text: Math.round(rehideSlider.liveValue) === 0 ? "Off" : (Math.round(rehideSlider.liveValue) + "s")
+          textFormat: Text.PlainText
+          renderType: Text.NativeRendering
+          font.family: Style.font.family
+          font.pixelSize: Style.font.bodySmall
+          color: Color.foreground
+          horizontalAlignment: Text.AlignRight
+        }
+      }
+
+      // 5. Deduplication
       Row {
         width: parent.width
         spacing: 8
@@ -968,4 +1056,5 @@ Item {
       }
     }
   }
+}
 }

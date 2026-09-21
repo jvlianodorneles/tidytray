@@ -952,7 +952,10 @@ BarWidget {
         barAnchor: indicatorBtn.visible ? indicatorBtn : root
         hostedWidgets: root.displayMode === "drawer" ? root.drawerHostedWidgets : []
         sniItems: root.displayMode === "drawer" ? root.drawerSniItems : []
-        onOpenSettingsRequested: root.openManage()
+        onOpenSettingsRequested: {
+          if (manageComp) manageComp.activeTab = "config"
+          root.openManage()
+        }
         onSniMenuRequested: function(item, target, mouse) {
           root.openTrayMenu(item, target, mouse)
         }
@@ -989,6 +992,11 @@ BarWidget {
       anchors.fill: parent
       blocked: manageComp.isEditing
       onCloseRequested: root.manageOpen = false
+      onTextKey: function(t) {
+        if (t === "s") {
+          manageComp.activeTab = (manageComp.activeTab === "items" ? "config" : "items")
+        }
+      }
 
       ManagePanel {
         id: manageComp
