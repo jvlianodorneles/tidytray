@@ -192,6 +192,17 @@ def save_settings(tray_id, settings_json):
     for k, v in new_settings.items():
         tray_entry[k] = v
         
+    if "order" in new_settings and isinstance(new_settings["order"], list) and "widgets" in tray_entry and isinstance(tray_entry["widgets"], list):
+        order_list = new_settings["order"]
+        def widget_order_key(w):
+            w_obj = w.get("entry", w) if isinstance(w, dict) else w
+            wid = entry_id(w_obj)
+            try:
+                return order_list.index(wid)
+            except ValueError:
+                return 999999
+        tray_entry["widgets"].sort(key=widget_order_key)
+
     return save_config(config)
 
 def main():

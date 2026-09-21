@@ -370,8 +370,12 @@ BarWidget {
   readonly property var drawerHostedWidgets: TrayModel.filterHostedWidgets(
     configuredWidgets, pinnedIds, hiddenIds, "drawer"
   )
+  readonly property var drawerOrder: TrayModel.normalizeIdList(activeSettings.order)
+  readonly property var drawerItems: TrayModel.buildDrawerItems(
+    drawerHostedWidgets, drawerSniItems, drawerOrder
+  )
 
-  readonly property int drawerCount: drawerSniItems.length + drawerHostedWidgets.length
+  readonly property int drawerCount: drawerItems.length
   readonly property bool hasDrawerContent: drawerCount > 0
 
   // Indicator button visibility:
@@ -661,6 +665,54 @@ BarWidget {
     }
   }
 
+  function reorderDrawerItem(fromIndex, toIndex) {
+    var current = root.drawerItems
+    if (!current || fromIndex < 0 || fromIndex >= current.length || toIndex < 0 || toIndex >= current.length || fromIndex === toIndex) return
+    var reordered = TrayModel.reorderDrawerItems(current, fromIndex, toIndex)
+    var newOrder = TrayModel.drawerOrderTokens(reordered)
+
+    var newHostedOrder = []
+    for (var i = 0; i < reordered.length; i++) {
+      if (reordered[i].isWidget) {
+        newHostedOrder.push(reordered[i].id)
+      }
+    }
+
+    var shellObj = getRealShell()
+    var handled = false
+    if (shellObj) {
+      try {
+        shellObj.mutateShellConfig(function(config) {
+          var found = TrayModel.findLayoutEntry(config.bar.layout, root.moduleName)
+          if (found && found.entry) {
+            if (typeof found.entry === "string") {
+              found.entry = { id: found.entry }
+              found.entries[found.index] = found.entry
+            }
+            found.entry.order = newOrder
+            if (Array.isArray(found.entry.widgets)) {
+              found.entry.widgets.sort(function(a, b) {
+                var aId = TrayModel.wrapperId(a)
+                var bId = TrayModel.wrapperId(b)
+                var aIdx = newHostedOrder.indexOf(aId)
+                var bIdx = newHostedOrder.indexOf(bId)
+                if (aIdx === -1) return 1
+                if (bIdx === -1) return -1
+                return aIdx - bIdx
+              })
+            }
+            handled = true
+          }
+        })
+      } catch (e) {
+        handled = false
+      }
+    }
+    if (!handled) {
+      root.saveSettings({ order: newOrder })
+    }
+  }
+
   function saveSettings(newSettings) {
     var shellObj = getRealShell()
     var handled = false
@@ -778,12 +830,46 @@ BarWidget {
     height: activeItem ? activeItem.height : Style.bar.iconSlot
   }
 
+  function isDescendantOf(child, ancestor) {
+    var p = child ? child.parent : null
+    while (p) {
+      if (p === ancestor) return true
+      p = p.parent
+    }
+    return false
+  }
+
   property var activePopupDragDelegate: null
+  property bool popupDragActive: false
+  property string popupDragMode: ""
 
   function startHostedDrag(delegate, localPos) {
+    if (!delegate) return false
+
+    var isDrawer = drawerGridPanel && drawerGridPanel.open && drawerGridComp && isDescendantOf(delegate, drawerGridComp)
+    var isDropdown = (root.displayMode === "dropdown") && dropdownStrip && isDescendantOf(delegate, dropdownStrip)
+
+    if (isDrawer) {
+      popupDragActive = true
+      popupDragMode = "drawer"
+      activePopupDragDelegate = delegate
+      var fromIdx = drawerGridComp.indexOfDelegate(delegate)
+      drawerGridComp.startDrag(fromIdx, delegate, localPos)
+      return true
+    }
+
+    if (isDropdown) {
+      popupDragActive = true
+      popupDragMode = "dropdown"
+      activePopupDragDelegate = delegate
+      var fromIdx2 = dropdownStrip.indexOfDelegate(delegate)
+      dropdownStrip.startDrag(fromIdx2, delegate, localPos)
+      return true
+    }
+
     var b = root.effectiveHostBar
     var win = root.barWindow || (b ? b.barWindow : null)
-    if (!b || !win || !delegate) return false
+    if (!b || !win) return false
     if (b.barDragSource === fakeDragSlot) return false
 
     activePopupDragDelegate = delegate
@@ -803,18 +889,76 @@ BarWidget {
   }
 
   function updateHostedDrag(delegate, localPos) {
-    var b = root.effectiveHostBar
-    if (!b || !delegate || b.barDragSource !== fakeDragSlot) return
-
+    if (!delegate) return
     var lx = localPos ? localPos.x : (delegate.width / 2)
     var ly = localPos ? localPos.y : (delegate.height / 2)
+
+    if (popupDragActive) {
+      if (popupDragMode === "drawer" && drawerGridComp) {
+        var dp = drawerGridComp.mapFromItem(delegate, lx, ly)
+        var inDrawer = dp.x >= 0 && dp.x <= drawerGridComp.width && dp.y >= 0 && dp.y <= drawerGridComp.height
+        if (inDrawer) {
+          drawerGridComp.updateDrag(dp.x, dp.y)
+          var bObj = root.effectiveHostBar
+          if (bObj && bObj.barDragSource === fakeDragSlot && typeof bObj.clearBarDrag === "function") {
+            bObj.clearBarDrag()
+          }
+          return
+        } else {
+          drawerGridComp.cancelDrag()
+          var b = root.effectiveHostBar
+          var win = root.barWindow || (b ? b.barWindow : null)
+          if (b && win && b.barDragSource !== fakeDragSlot) {
+            fakeDragSlot.moduleName = String(delegate.widgetId || (delegate.entry && TrayModel.entryId(delegate.entry)) || "")
+            fakeDragSlot.activeItem = delegate.activeItem || delegate
+            fakeDragSlot.region = "tray"
+            b.barDragWindow = win
+            b.barDragScreen = win ? win.screen : null
+            b.barDragOffsetX = lx
+            b.barDragOffsetY = ly
+            if (typeof b.captureBarDragGhost === "function") b.captureBarDragGhost(fakeDragSlot)
+            b.barDragSource = fakeDragSlot
+          }
+        }
+      } else if (popupDragMode === "dropdown" && dropdownStrip) {
+        var ddp = dropdownStrip.mapFromItem(delegate, lx, ly)
+        var inDropdown = ddp.x >= 0 && ddp.x <= dropdownStrip.width && ddp.y >= 0 && ddp.y <= dropdownStrip.height
+        if (inDropdown) {
+          dropdownStrip.updateDrag(ddp.x, ddp.y)
+          var bObj2 = root.effectiveHostBar
+          if (bObj2 && bObj2.barDragSource === fakeDragSlot && typeof bObj2.clearBarDrag === "function") {
+            bObj2.clearBarDrag()
+          }
+          return
+        } else {
+          dropdownStrip.cancelDrag()
+          var b2 = root.effectiveHostBar
+          var win2 = root.barWindow || (b2 ? b2.barWindow : null)
+          if (b2 && win2 && b2.barDragSource !== fakeDragSlot) {
+            fakeDragSlot.moduleName = String(delegate.widgetId || (delegate.entry && TrayModel.entryId(delegate.entry)) || "")
+            fakeDragSlot.activeItem = delegate.activeItem || delegate
+            fakeDragSlot.region = "tray"
+            b2.barDragWindow = win2
+            b2.barDragScreen = win2 ? win2.screen : null
+            b2.barDragOffsetX = lx
+            b2.barDragOffsetY = ly
+            if (typeof b2.captureBarDragGhost === "function") b2.captureBarDragGhost(fakeDragSlot)
+            b2.barDragSource = fakeDragSlot
+          }
+        }
+      }
+    }
+
+    var bHost = root.effectiveHostBar
+    if (!bHost || bHost.barDragSource !== fakeDragSlot) return
+
     var screenPoint = itemScreenPoint(delegate, lx, ly)
     var scenePoint = screenToBarScene(screenPoint)
 
-    b.barDragSceneX = scenePoint.x
-    b.barDragSceneY = scenePoint.y
-    b.barDragScreenX = screenPoint.x
-    b.barDragScreenY = screenPoint.y
+    bHost.barDragSceneX = scenePoint.x
+    bHost.barDragSceneY = scenePoint.y
+    bHost.barDragScreenX = screenPoint.x
+    bHost.barDragScreenY = screenPoint.y
 
     var p = { x: 0, y: 0 }
     try {
@@ -825,24 +969,47 @@ BarWidget {
     var overTray = p.x >= 0 && p.x <= root.width && p.y >= 0 && p.y <= root.height
 
     if (overTray) {
-      b.barDragTarget = null
-      b.barDragAfter = false
-      b.barDragTargetGeometry = null
+      bHost.barDragTarget = null
+      bHost.barDragAfter = false
+      bHost.barDragTargetGeometry = null
       root.caretActive = true
       return
     }
     root.caretActive = false
 
-    if (typeof b.moduleDropAtScene === "function") {
-      var drop = b.moduleDropAtScene(scenePoint, fakeDragSlot)
-      b.barDragTarget = drop ? drop.slot : null
-      b.barDragAfter = drop ? drop.after : false
-      b.barDragTargetGeometry = (drop && typeof b.dropMarkerRect === "function")
-        ? b.dropMarkerRect(drop.slot, drop.after) : null
+    if (typeof bHost.moduleDropAtScene === "function") {
+      var drop = bHost.moduleDropAtScene(scenePoint, fakeDragSlot)
+      bHost.barDragTarget = drop ? drop.slot : null
+      bHost.barDragAfter = drop ? drop.after : false
+      bHost.barDragTargetGeometry = (drop && typeof bHost.dropMarkerRect === "function")
+        ? bHost.dropMarkerRect(drop.slot, drop.after) : null
     }
   }
 
   function endHostedDrag(delegate) {
+    if (popupDragActive) {
+      if (popupDragMode === "drawer" && drawerGridComp && drawerGridComp.isDragActive) {
+        drawerGridComp.endDrag()
+        popupDragActive = false
+        popupDragMode = ""
+        activePopupDragDelegate = null
+        var b = root.effectiveHostBar
+        if (b && typeof b.clearBarDrag === "function") b.clearBarDrag()
+        return
+      }
+      if (popupDragMode === "dropdown" && dropdownStrip && dropdownStrip.isDragActive) {
+        dropdownStrip.endDrag()
+        popupDragActive = false
+        popupDragMode = ""
+        activePopupDragDelegate = null
+        var b2 = root.effectiveHostBar
+        if (b2 && typeof b2.clearBarDrag === "function") b2.clearBarDrag()
+        return
+      }
+      popupDragActive = false
+      popupDragMode = ""
+    }
+
     var b = root.effectiveHostBar
     if (!b || b.barDragSource !== fakeDragSlot) {
       activePopupDragDelegate = null
@@ -878,9 +1045,32 @@ BarWidget {
   }
 
   function startIconDrag(delegate, mouse) {
+    if (!delegate) return false
+
+    var isDrawer = drawerGridPanel && drawerGridPanel.open && drawerGridComp && isDescendantOf(delegate, drawerGridComp)
+    var isDropdown = (root.displayMode === "dropdown") && dropdownStrip && isDescendantOf(delegate, dropdownStrip)
+
+    if (isDrawer) {
+      popupDragActive = true
+      popupDragMode = "drawer"
+      activePopupDragDelegate = delegate
+      var fromIdx = drawerGridComp.indexOfDelegate(delegate)
+      drawerGridComp.startDrag(fromIdx, delegate, mouse)
+      return true
+    }
+
+    if (isDropdown) {
+      popupDragActive = true
+      popupDragMode = "dropdown"
+      activePopupDragDelegate = delegate
+      var fromIdx2 = dropdownStrip.indexOfDelegate(delegate)
+      dropdownStrip.startDrag(fromIdx2, delegate, mouse)
+      return true
+    }
+
     var b = root.effectiveHostBar
     var win = root.barWindow || (b ? b.barWindow : null)
-    if (!b || !win || !delegate) return false
+    if (!b || !win) return false
     if (b.barDragSource === fakeDragSlot) return false
 
     activePopupDragDelegate = delegate
@@ -900,18 +1090,76 @@ BarWidget {
   }
 
   function updateIconDrag(delegate, mouse) {
-    var b = root.effectiveHostBar
-    if (!b || !delegate || b.barDragSource !== fakeDragSlot) return
-
+    if (!delegate) return
     var lx = mouse ? mouse.x : (delegate.width / 2)
     var ly = mouse ? mouse.y : (delegate.height / 2)
+
+    if (popupDragActive) {
+      if (popupDragMode === "drawer" && drawerGridComp) {
+        var dp = drawerGridComp.mapFromItem(delegate, lx, ly)
+        var inDrawer = dp.x >= 0 && dp.x <= drawerGridComp.width && dp.y >= 0 && dp.y <= drawerGridComp.height
+        if (inDrawer) {
+          drawerGridComp.updateDrag(dp.x, dp.y)
+          var bObj = root.effectiveHostBar
+          if (bObj && bObj.barDragSource === fakeDragSlot && typeof bObj.clearBarDrag === "function") {
+            bObj.clearBarDrag()
+          }
+          return
+        } else {
+          drawerGridComp.cancelDrag()
+          var b = root.effectiveHostBar
+          var win = root.barWindow || (b ? b.barWindow : null)
+          if (b && win && b.barDragSource !== fakeDragSlot) {
+            fakeDragSlot.moduleName = String(delegate.itemId || (delegate.modelData && delegate.modelData.id) || "")
+            fakeDragSlot.activeItem = delegate
+            fakeDragSlot.region = "tray"
+            b.barDragWindow = win
+            b.barDragScreen = win ? win.screen : null
+            b.barDragOffsetX = lx
+            b.barDragOffsetY = ly
+            if (typeof b.captureBarDragGhost === "function") b.captureBarDragGhost(fakeDragSlot)
+            b.barDragSource = fakeDragSlot
+          }
+        }
+      } else if (popupDragMode === "dropdown" && dropdownStrip) {
+        var ddp = dropdownStrip.mapFromItem(delegate, lx, ly)
+        var inDropdown = ddp.x >= 0 && ddp.x <= dropdownStrip.width && ddp.y >= 0 && ddp.y <= dropdownStrip.height
+        if (inDropdown) {
+          dropdownStrip.updateDrag(ddp.x, ddp.y)
+          var bObj2 = root.effectiveHostBar
+          if (bObj2 && bObj2.barDragSource === fakeDragSlot && typeof bObj2.clearBarDrag === "function") {
+            bObj2.clearBarDrag()
+          }
+          return
+        } else {
+          dropdownStrip.cancelDrag()
+          var b2 = root.effectiveHostBar
+          var win2 = root.barWindow || (b2 ? b2.barWindow : null)
+          if (b2 && win2 && b2.barDragSource !== fakeDragSlot) {
+            fakeDragSlot.moduleName = String(delegate.itemId || (delegate.modelData && delegate.modelData.id) || "")
+            fakeDragSlot.activeItem = delegate
+            fakeDragSlot.region = "tray"
+            b2.barDragWindow = win2
+            b2.barDragScreen = win2 ? win2.screen : null
+            b2.barDragOffsetX = lx
+            b2.barDragOffsetY = ly
+            if (typeof b2.captureBarDragGhost === "function") b2.captureBarDragGhost(fakeDragSlot)
+            b2.barDragSource = fakeDragSlot
+          }
+        }
+      }
+    }
+
+    var bHost = root.effectiveHostBar
+    if (!bHost || bHost.barDragSource !== fakeDragSlot) return
+
     var screenPoint = itemScreenPoint(delegate, lx, ly)
     var scenePoint = screenToBarScene(screenPoint)
 
-    b.barDragSceneX = scenePoint.x
-    b.barDragSceneY = scenePoint.y
-    b.barDragScreenX = screenPoint.x
-    b.barDragScreenY = screenPoint.y
+    bHost.barDragSceneX = scenePoint.x
+    bHost.barDragSceneY = scenePoint.y
+    bHost.barDragScreenX = screenPoint.x
+    bHost.barDragScreenY = screenPoint.y
 
     var p = { x: 0, y: 0 }
     try {
@@ -929,6 +1177,29 @@ BarWidget {
   }
 
   function endIconDrag(delegate, mouse) {
+    if (popupDragActive) {
+      if (popupDragMode === "drawer" && drawerGridComp && drawerGridComp.isDragActive) {
+        drawerGridComp.endDrag()
+        popupDragActive = false
+        popupDragMode = ""
+        activePopupDragDelegate = null
+        var b = root.effectiveHostBar
+        if (b && typeof b.clearBarDrag === "function") b.clearBarDrag()
+        return
+      }
+      if (popupDragMode === "dropdown" && dropdownStrip && dropdownStrip.isDragActive) {
+        dropdownStrip.endDrag()
+        popupDragActive = false
+        popupDragMode = ""
+        activePopupDragDelegate = null
+        var b2 = root.effectiveHostBar
+        if (b2 && typeof b2.clearBarDrag === "function") b2.clearBarDrag()
+        return
+      }
+      popupDragActive = false
+      popupDragMode = ""
+    }
+
     var b = root.effectiveHostBar
     if (!b || b.barDragSource !== fakeDragSlot) {
       activePopupDragDelegate = null
@@ -1477,9 +1748,13 @@ BarWidget {
         barAnchor: indicatorBtn.visible ? indicatorBtn : root
         hostedWidgets: root.displayMode === "dropdown" ? root.drawerHostedWidgets : []
         sniItems: root.displayMode === "dropdown" ? root.drawerSniItems : []
+        drawerItems: root.displayMode === "dropdown" ? root.drawerItems : []
         vertical: root.vertical
         onSniMenuRequested: function(item, target, mouse) {
           root.openTrayMenu(item, target, mouse)
+        }
+        onReorderRequested: function(fromIdx, toIdx) {
+          root.reorderDrawerItem(fromIdx, toIdx)
         }
       }
     }
@@ -1519,12 +1794,16 @@ BarWidget {
         barAnchor: indicatorBtn.visible ? indicatorBtn : root
         hostedWidgets: root.displayMode === "drawer" ? root.drawerHostedWidgets : []
         sniItems: root.displayMode === "drawer" ? root.drawerSniItems : []
+        drawerItems: root.displayMode === "drawer" ? root.drawerItems : []
         onOpenSettingsRequested: {
           if (manageComp) manageComp.activeTab = "config"
           root.openManage()
         }
         onSniMenuRequested: function(item, target, mouse) {
           root.openTrayMenu(item, target, mouse)
+        }
+        onReorderRequested: function(fromIdx, toIdx) {
+          root.reorderDrawerItem(fromIdx, toIdx)
         }
       }
     }

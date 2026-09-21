@@ -174,4 +174,51 @@ assert.strictEqual(M.chevronRotation("drawer", "top", false, false, true), -90) 
 assert.strictEqual(M.chevronRotation("drawer", "top", true, false, true), 90)     // Left of top bar -> points DOWN
 assert.strictEqual(M.chevronRotation("inline", "top", false, false, true), 180)   // Inline mode -> flips 180
 
+// 9. calculateDropIndex tests
+assert.strictEqual(M.calculateDropIndex(1, 3, false), 2) // move 1 before 3
+assert.strictEqual(M.calculateDropIndex(1, 3, true), 3)  // move 1 after 3
+assert.strictEqual(M.calculateDropIndex(3, 1, false), 1) // move 3 before 1
+assert.strictEqual(M.calculateDropIndex(3, 1, true), 2)  // move 3 after 1
+assert.strictEqual(M.calculateDropIndex(2, 2, false), 2) // same index
+assert.strictEqual(M.calculateDropIndex(2, 2, true), 2)
+
+// 10. buildDrawerItems tests
+const testWidgets = [{ entry: { id: "omastage" } }, { entry: { id: "battery" } }]
+const testSnis = [{ id: "spotify", title: "Spotify" }, { id: "steam", title: "Steam" }]
+
+// Default order (no order specified)
+const defaultItems = M.buildDrawerItems(testWidgets, testSnis, [])
+assert.strictEqual(defaultItems.length, 4)
+assert.strictEqual(defaultItems[0].id, "omastage")
+assert.strictEqual(defaultItems[1].id, "battery")
+assert.strictEqual(defaultItems[2].id, "spotify")
+assert.strictEqual(defaultItems[3].id, "steam")
+
+// Custom order specified
+const orderedItems = M.buildDrawerItems(testWidgets, testSnis, ["steam", "battery", "spotify", "omastage"])
+assert.strictEqual(orderedItems.length, 4)
+assert.strictEqual(orderedItems[0].id, "steam")
+assert.strictEqual(orderedItems[1].id, "battery")
+assert.strictEqual(orderedItems[2].id, "spotify")
+assert.strictEqual(orderedItems[3].id, "omastage")
+
+// Partial order (unlisted items appended in natural order)
+const partialItems = M.buildDrawerItems(testWidgets, testSnis, ["steam"])
+assert.strictEqual(partialItems.length, 4)
+assert.strictEqual(partialItems[0].id, "steam")
+assert.strictEqual(partialItems[1].id, "omastage")
+assert.strictEqual(partialItems[2].id, "battery")
+assert.strictEqual(partialItems[3].id, "spotify")
+
+// 11. reorderDrawerItems tests
+const reordered = M.reorderDrawerItems(orderedItems, 0, 2)
+assert.strictEqual(reordered[0].id, "battery")
+assert.strictEqual(reordered[1].id, "spotify")
+assert.strictEqual(reordered[2].id, "steam")
+assert.strictEqual(reordered[3].id, "omastage")
+
+// 12. drawerOrderTokens tests
+const tokens = M.drawerOrderTokens(reordered)
+assert.deepStrictEqual(JSON.parse(JSON.stringify(tokens)), ["battery", "spotify", "steam", "omastage"])
+
 console.log("All TrayModel unit tests passed successfully!")

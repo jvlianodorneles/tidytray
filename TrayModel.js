@@ -414,6 +414,111 @@ function clearPersistedManageState() {
   _persistedManageState = { open: false, tab: "items" }
 }
 
+// Calculates target insertion index from drag drop position
+function calculateDropIndex(fromIndex, targetIndex, dropAfter) {
+  if (fromIndex === targetIndex) return fromIndex
+  if (fromIndex < targetIndex) {
+    return dropAfter ? targetIndex : targetIndex - 1
+  } else {
+    return dropAfter ? targetIndex + 1 : targetIndex
+  }
+}
+
+// Builds a unified list of drawer items combining hosted widgets and SNI items,
+// sorted according to orderList if provided.
+function buildDrawerItems(hostedWidgets, sniItems, orderList) {
+  var hosted = normalizeWrappers(hostedWidgets)
+  var snis = asList(sniItems)
+  var order = asList(orderList)
+
+  var itemsById = {}
+  var allIds = []
+
+  for (var i = 0; i < hosted.length; i++) {
+    var hw = hosted[i]
+    var hid = wrapperId(hw)
+    if (!hid) continue
+    var hItem = {
+      id: hid,
+      key: hid,
+      isWidget: true,
+      isSni: false,
+      modelData: hw,
+      title: friendlyDisplayName(hid)
+    }
+    itemsById[hid] = hItem
+    allIds.push(hid)
+  }
+
+  for (var j = 0; j < snis.length; j++) {
+    var s = snis[j]
+    if (!s) continue
+    var sid = String(s.id || "")
+    if (!sid) continue
+    var key = sid
+    if (itemsById[key]) key = "sni:" + sid
+    var sItem = {
+      id: sid,
+      key: key,
+      isWidget: false,
+      isSni: true,
+      modelData: s,
+      title: String(s.title || friendlyDisplayName(sid))
+    }
+    itemsById[key] = sItem
+    allIds.push(key)
+  }
+
+  var result = []
+  var seen = {}
+
+  if (Array.isArray(order) && order.length > 0) {
+    for (var k = 0; k < order.length; k++) {
+      var oId = String(order[k])
+      if (itemsById[oId] && !seen[oId]) {
+        result.push(itemsById[oId])
+        seen[oId] = true
+      } else if (itemsById["sni:" + oId] && !seen["sni:" + oId]) {
+        result.push(itemsById["sni:" + oId])
+        seen["sni:" + oId] = true
+      }
+    }
+  }
+
+  for (var m = 0; m < allIds.length; m++) {
+    var aId = allIds[m]
+    if (!seen[aId] && itemsById[aId]) {
+      result.push(itemsById[aId])
+      seen[aId] = true
+    }
+  }
+
+  return result
+}
+
+// Reorders an item within a list from fromIndex to toIndex
+function reorderDrawerItems(currentItems, fromIndex, toIndex) {
+  var list = asList(currentItems).slice()
+  if (fromIndex < 0 || fromIndex >= list.length) return list
+  if (toIndex < 0 || toIndex >= list.length || fromIndex === toIndex) return list
+  var item = list.splice(fromIndex, 1)[0]
+  list.splice(toIndex, 0, item)
+  return list
+}
+
+// Extracts item tokens/IDs for storage in config.bar.layout entry.order
+function drawerOrderTokens(items) {
+  var list = asList(items)
+  var out = []
+  for (var i = 0; i < list.length; i++) {
+    var item = list[i]
+    if (!item) continue
+    var id = item.id || item.key || (item.entry ? entryId(item.entry) : entryId(item))
+    if (id && out.indexOf(id) === -1) out.push(id)
+  }
+  return out
+}
+
 // Catalog helpers: parse bar widgets from manifests
 function catalogEntryFromManifest(sourceDir, manifest) {
   if (!manifest || typeof manifest !== "object") return null
@@ -481,6 +586,10 @@ if (typeof module !== "undefined" && module.exports) {
     friendlyDisplayName: friendlyDisplayName,
     setPersistedManageState: setPersistedManageState,
     getPersistedManageState: getPersistedManageState,
-    clearPersistedManageState: clearPersistedManageState
+    clearPersistedManageState: clearPersistedManageState,
+    calculateDropIndex: calculateDropIndex,
+    buildDrawerItems: buildDrawerItems,
+    reorderDrawerItems: reorderDrawerItems,
+    drawerOrderTokens: drawerOrderTokens
   }
 }
