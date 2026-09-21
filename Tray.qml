@@ -597,23 +597,44 @@ BarWidget {
   }
 
   function releaseWidget(widgetId) {
+    releaseWidgetAt(widgetId, null, null)
+  }
+
+  function releaseWidgetAt(widgetId, targetSection, beforeName) {
     if (!widgetId) return
     if (root.manageOpen) {
       TrayModel.setPersistedManageState(true, manageComp ? manageComp.activeTab : "items")
     }
     var shellObj = getRealShell()
     var handled = false
+    var trayId = root.moduleName || "io.github.jvlianodorneles.tidytray"
+    var sec = targetSection || root.barSection
+    var bName = beforeName || ""
     if (shellObj) {
       try {
         shellObj.mutateShellConfig(function(config) {
-          handled = TrayModel.releaseFromTray(config, root.moduleName, widgetId)
+          handled = TrayModel.releaseFromTray(config, trayId, widgetId, sec, bName)
         })
       } catch (e) {
         handled = false
       }
     }
     if (!handled) {
-      runHelper("release", [root.moduleName, widgetId])
+      runHelper("release", [trayId, widgetId, sec, bName])
+    }
+  }
+
+  function togglePinned(id) {
+    if (!id) return
+    var res = TrayModel.toggleBucketId(root.pinnedIds, root.hiddenIds, id, "pinned")
+    root.saveSettings({ pinned: res.pinned, hidden: res.hidden })
+  }
+
+  function setPinned(id, pin) {
+    if (!id) return
+    var isPinned = root.pinnedIds.indexOf(id) !== -1
+    if ((pin && !isPinned) || (!pin && isPinned)) {
+      togglePinned(id)
     }
   }
 
@@ -665,6 +686,285 @@ BarWidget {
   }
 
   // ---------------------------------------------------------------------------
+  // Live Delegates Registry & Hit-Testing for Drag Out
+  // ---------------------------------------------------------------------------
+  property var hostedDelegates: []
+  property var trayIconDelegates: []
+
+  function registerHostedDelegate(item) {
+    if (!item || hostedDelegates.indexOf(item) !== -1) return
+    var next = hostedDelegates.slice()
+    next.push(item)
+    hostedDelegates = next
+  }
+
+  function unregisterHostedDelegate(item) {
+    hostedDelegates = hostedDelegates.filter(function(d) { return d !== item })
+  }
+
+  function registerTrayIconDelegate(item) {
+    if (!item || trayIconDelegates.indexOf(item) !== -1) return
+    var next = trayIconDelegates.slice()
+    next.push(item)
+    trayIconDelegates = next
+  }
+
+  function unregisterTrayIconDelegate(item) {
+    trayIconDelegates = trayIconDelegates.filter(function(d) { return d !== item })
+  }
+
+  function delegateAt(delegates, rootX, rootY) {
+    for (var i = 0; i < delegates.length; i++) {
+      var d = delegates[i]
+      if (!d || !d.visible || d.width <= 0 || d.height <= 0) continue
+      var p
+      try {
+        p = root.mapToItem(d, rootX, rootY)
+      } catch (e) {
+        continue
+      }
+      if (p.x >= 0 && p.x <= d.width && p.y >= 0 && p.y <= d.height) return d
+    }
+    return null
+  }
+
+  function hostedDelegateAt(rootX, rootY) {
+    return delegateAt(hostedDelegates, rootX, rootY)
+  }
+
+  function trayIconDelegateAt(rootX, rootY) {
+    return delegateAt(trayIconDelegates, rootX, rootY)
+  }
+
+  function itemScreenPoint(item, localX, localY) {
+    if (!item) return { x: 0, y: 0 }
+    if (typeof item.mapToGlobal === "function") {
+      try {
+        return item.mapToGlobal(localX, localY)
+      } catch (e) {}
+    }
+    try {
+      return item.mapToItem(null, localX, localY)
+    } catch (e) {
+      return { x: 0, y: 0 }
+    }
+  }
+
+  function screenToBarScene(screenPoint) {
+    var b = root.effectiveHostBar
+    var bw = root.barWindow || (b ? b.barWindow : null)
+    var sx = screenPoint ? screenPoint.x : 0
+    var sy = screenPoint ? screenPoint.y : 0
+    if (!b || !bw) return { x: sx, y: sy }
+    if (b.position === "bottom" && bw.screen) {
+      sy -= Math.max(0, bw.screen.height - bw.height)
+    } else if (b.position === "right" && bw.screen) {
+      sx -= Math.max(0, bw.screen.width - bw.width)
+    }
+    return { x: sx, y: sy }
+  }
+
+  // Stand-in module slot for Bar drag plumbing
+  Item {
+    id: fakeDragSlot
+    visible: false
+    property string region: "tray"
+    property string moduleName: ""
+    property var activeItem: null
+    width: activeItem ? activeItem.width : Style.bar.iconSlot
+    height: activeItem ? activeItem.height : Style.bar.iconSlot
+  }
+
+  property var activePopupDragDelegate: null
+
+  function startHostedDrag(delegate, localPos) {
+    var b = root.effectiveHostBar
+    var win = root.barWindow || (b ? b.barWindow : null)
+    if (!b || !win || !delegate) return false
+    if (b.barDragSource === fakeDragSlot) return false
+
+    activePopupDragDelegate = delegate
+    fakeDragSlot.moduleName = String(delegate.widgetId || (delegate.entry && TrayModel.entryId(delegate.entry)) || "")
+    fakeDragSlot.activeItem = delegate.activeItem || delegate
+    fakeDragSlot.region = "tray"
+
+    b.barDragWindow = win
+    b.barDragScreen = win ? win.screen : null
+    var lx = localPos ? localPos.x : (delegate.width / 2)
+    var ly = localPos ? localPos.y : (delegate.height / 2)
+    b.barDragOffsetX = lx
+    b.barDragOffsetY = ly
+    if (typeof b.captureBarDragGhost === "function") b.captureBarDragGhost(fakeDragSlot)
+    b.barDragSource = fakeDragSlot
+    return true
+  }
+
+  function updateHostedDrag(delegate, localPos) {
+    var b = root.effectiveHostBar
+    if (!b || !delegate || b.barDragSource !== fakeDragSlot) return
+
+    var lx = localPos ? localPos.x : (delegate.width / 2)
+    var ly = localPos ? localPos.y : (delegate.height / 2)
+    var screenPoint = itemScreenPoint(delegate, lx, ly)
+    var scenePoint = screenToBarScene(screenPoint)
+
+    b.barDragSceneX = scenePoint.x
+    b.barDragSceneY = scenePoint.y
+    b.barDragScreenX = screenPoint.x
+    b.barDragScreenY = screenPoint.y
+
+    var p = { x: 0, y: 0 }
+    try {
+      p = root.mapFromItem(null, scenePoint.x, scenePoint.y)
+    } catch (e) {
+      p = { x: -1, y: -1 }
+    }
+    var overTray = p.x >= 0 && p.x <= root.width && p.y >= 0 && p.y <= root.height
+
+    if (overTray) {
+      b.barDragTarget = null
+      b.barDragAfter = false
+      b.barDragTargetGeometry = null
+      root.caretActive = true
+      return
+    }
+    root.caretActive = false
+
+    if (typeof b.moduleDropAtScene === "function") {
+      var drop = b.moduleDropAtScene(scenePoint, fakeDragSlot)
+      b.barDragTarget = drop ? drop.slot : null
+      b.barDragAfter = drop ? drop.after : false
+      b.barDragTargetGeometry = (drop && typeof b.dropMarkerRect === "function")
+        ? b.dropMarkerRect(drop.slot, drop.after) : null
+    }
+  }
+
+  function endHostedDrag(delegate) {
+    var b = root.effectiveHostBar
+    if (!b || b.barDragSource !== fakeDragSlot) {
+      activePopupDragDelegate = null
+      return
+    }
+
+    var target = b.barDragTarget
+    var after = b.barDragAfter
+    var widgetId = fakeDragSlot.moduleName
+    var toRegion = target ? String(target.region || "") : ""
+    var beforeName = ""
+
+    if (target && b && typeof b.nextVisibleModuleName === "function") {
+      beforeName = after
+        ? String(b.nextVisibleModuleName(target.region, target.moduleName, fakeDragSlot) || "")
+        : String(target.moduleName || "")
+    }
+
+    if (typeof b.clearBarDrag === "function") b.clearBarDrag()
+    fakeDragSlot.activeItem = null
+    fakeDragSlot.moduleName = ""
+    activePopupDragDelegate = null
+    root.caretActive = false
+
+    if (!widgetId) return
+
+    if (!toRegion) {
+      toRegion = root.barSection
+    }
+
+    root.releaseWidgetAt(widgetId, toRegion, beforeName)
+    root.collapse()
+  }
+
+  function startIconDrag(delegate, mouse) {
+    var b = root.effectiveHostBar
+    var win = root.barWindow || (b ? b.barWindow : null)
+    if (!b || !win || !delegate) return false
+    if (b.barDragSource === fakeDragSlot) return false
+
+    activePopupDragDelegate = delegate
+    fakeDragSlot.moduleName = String(delegate.itemId || (delegate.modelData && delegate.modelData.id) || "")
+    fakeDragSlot.activeItem = delegate
+    fakeDragSlot.region = "tray"
+
+    b.barDragWindow = win
+    b.barDragScreen = win ? win.screen : null
+    var lx = mouse ? mouse.x : (delegate.width / 2)
+    var ly = mouse ? mouse.y : (delegate.height / 2)
+    b.barDragOffsetX = lx
+    b.barDragOffsetY = ly
+    if (typeof b.captureBarDragGhost === "function") b.captureBarDragGhost(fakeDragSlot)
+    b.barDragSource = fakeDragSlot
+    return true
+  }
+
+  function updateIconDrag(delegate, mouse) {
+    var b = root.effectiveHostBar
+    if (!b || !delegate || b.barDragSource !== fakeDragSlot) return
+
+    var lx = mouse ? mouse.x : (delegate.width / 2)
+    var ly = mouse ? mouse.y : (delegate.height / 2)
+    var screenPoint = itemScreenPoint(delegate, lx, ly)
+    var scenePoint = screenToBarScene(screenPoint)
+
+    b.barDragSceneX = scenePoint.x
+    b.barDragSceneY = scenePoint.y
+    b.barDragScreenX = screenPoint.x
+    b.barDragScreenY = screenPoint.y
+
+    var p = { x: 0, y: 0 }
+    try {
+      p = root.mapFromItem(null, scenePoint.x, scenePoint.y)
+    } catch (e) {
+      p = { x: -1, y: -1 }
+    }
+    var overTray = p.x >= 0 && p.x <= root.width && p.y >= 0 && p.y <= root.height
+
+    if (overTray) {
+      root.caretActive = true
+    } else {
+      root.caretActive = false
+    }
+  }
+
+  function endIconDrag(delegate, mouse) {
+    var b = root.effectiveHostBar
+    if (!b || b.barDragSource !== fakeDragSlot) {
+      activePopupDragDelegate = null
+      return
+    }
+
+    var itemId = fakeDragSlot.moduleName
+    var lx = mouse ? mouse.x : (delegate.width / 2)
+    var ly = mouse ? mouse.y : (delegate.height / 2)
+    var screenPoint = itemScreenPoint(delegate, lx, ly)
+    var scenePoint = screenToBarScene(screenPoint)
+
+    var p = { x: 0, y: 0 }
+    try {
+      p = root.mapFromItem(null, scenePoint.x, scenePoint.y)
+    } catch (e) {
+      p = { x: -1, y: -1 }
+    }
+    var overTray = p.x >= 0 && p.x <= root.width && p.y >= 0 && p.y <= root.height
+
+    if (typeof b.clearBarDrag === "function") b.clearBarDrag()
+    fakeDragSlot.activeItem = null
+    fakeDragSlot.moduleName = ""
+    activePopupDragDelegate = null
+    root.caretActive = false
+
+    if (!itemId) return
+
+    if (!overTray) {
+      root.setPinned(itemId, true)
+      root.collapse()
+    } else {
+      if (root.pinnedIds.indexOf(itemId) !== -1) {
+        root.setPinned(itemId, false)
+      }
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // Drag & Drop Handling (Tracking Host Bar Drag)
   // ---------------------------------------------------------------------------
   property bool caretActive: false
@@ -676,11 +976,11 @@ BarWidget {
     if (!isBarDragging) return ""
     var src = root.hostBar.barDragSource
     var mId = src ? String(src.moduleName || "") : ""
-    return (mId && mId !== root.moduleName) ? mId : ""
+    return (mId && mId !== root.moduleName && src !== fakeDragSlot) ? mId : ""
   }
 
   function checkDragHit() {
-    if (!root.hostBar || !root.hostBar.barDragSource || !root.currentDraggedId) {
+    if (!root.hostBar || !root.hostBar.barDragSource || root.hostBar.barDragSource === fakeDragSlot || !root.currentDraggedId) {
       if (dragOver) dragOver = false
       if (caretActive) caretActive = false
       return
@@ -718,12 +1018,12 @@ BarWidget {
     function onBarDragSceneYChanged() { root.checkDragHit() }
     function onBarDragSourceChanged() {
       var src = root.hostBar ? root.hostBar.barDragSource : null
-      if (src) {
+      if (src && src !== fakeDragSlot) {
         var mId = String(src.moduleName || "")
         if (mId && mId !== root.moduleName) {
           root.currentDraggedId = mId
         }
-      } else {
+      } else if (!src) {
         if (root.dragOver && root.currentDraggedId) {
           var idToCapture = root.currentDraggedId
           root.dragOver = false
@@ -871,6 +1171,209 @@ BarWidget {
               }
             }
           }
+        }
+      }
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Drag-out overlay mounted in ModuleSlot above modulePointer
+  // ---------------------------------------------------------------------------
+  Item {
+    id: dragOutOverlay
+    parent: root.parent && root.parent.parent ? root.parent.parent : root
+    z: 60
+    visible: root.visible && parent !== root
+    x: 0
+    y: 0
+    width: root.width
+    height: root.height
+
+    MouseArea {
+      id: dragOutMouse
+      anchors.fill: parent
+      acceptedButtons: Qt.LeftButton
+      propagateComposedEvents: true
+
+      property bool dragging: false
+      property bool suppressClick: false
+      property real pressedX: 0
+      property real pressedY: 0
+      property var dragDelegate: null
+      property var dragIconDelegate: null
+      readonly property bool canReorder: root.effectiveHostBar && root.effectiveHostBar.shell
+        && typeof root.effectiveHostBar.shell.mutateShellConfig === "function"
+      readonly property real dragThreshold: Style.space(4)
+
+      function rootPoint(mouse) {
+        return dragOutMouse.mapToItem(root, mouse.x, mouse.y)
+      }
+
+      onPressed: function(mouse) {
+        dragging = false
+        suppressClick = false
+        var p = rootPoint(mouse)
+
+        // Chevron / Indicator button zone: let it fall through to ModuleSlot's
+        // own MouseArea so dragging the chevron moves the whole TidyTray!
+        if (indicatorBtn && indicatorBtn.visible) {
+          var btnPoint = root.mapToItem(indicatorBtn, p.x, p.y)
+          if (btnPoint.x >= 0 && btnPoint.x <= indicatorBtn.width &&
+              btnPoint.y >= 0 && btnPoint.y <= indicatorBtn.height) {
+            mouse.accepted = false
+            return
+          }
+        }
+
+        pressedX = mouse.x
+        pressedY = mouse.y
+        dragDelegate = root.hostedDelegateAt(p.x, p.y)
+        dragIconDelegate = dragDelegate ? null : root.trayIconDelegateAt(p.x, p.y)
+
+        if (!dragDelegate && !dragIconDelegate) {
+          mouse.accepted = false
+          return
+        }
+      }
+
+      onPositionChanged: function(mouse) {
+        if (!canReorder || !(dragDelegate || dragIconDelegate) || !(mouse.buttons & Qt.LeftButton)) return
+
+        var distance = Math.abs(mouse.x - pressedX) + Math.abs(mouse.y - pressedY)
+        if (!dragging && distance >= dragThreshold) {
+          var delegate = dragDelegate || dragIconDelegate
+          var local = dragOutMouse.mapToItem(delegate, mouse.x, mouse.y)
+          var b = root.effectiveHostBar
+          var win = root.barWindow || (b ? b.barWindow : null)
+          if (!b || !win || !delegate) return
+
+          fakeDragSlot.moduleName = String(delegate.widgetId || delegate.itemId || "")
+          fakeDragSlot.activeItem = delegate.activeItem || delegate
+          fakeDragSlot.region = "tray"
+
+          b.barDragWindow = win
+          b.barDragScreen = win ? win.screen : null
+          b.barDragOffsetX = local.x
+          b.barDragOffsetY = local.y
+          if (typeof b.captureBarDragGhost === "function") b.captureBarDragGhost(fakeDragSlot)
+          b.barDragSource = fakeDragSlot
+          dragging = true
+          if (typeof b.hideTooltip === "function") b.hideTooltip(root)
+        }
+
+        if (dragging) {
+          var b = root.effectiveHostBar
+          if (!b) return
+          var scenePoint = dragOutMouse.mapToItem(null, mouse.x, mouse.y)
+          var screenPoint = typeof b.barDragScreenPoint === "function"
+            ? b.barDragScreenPoint(scenePoint) : scenePoint
+          b.barDragSceneX = scenePoint.x
+          b.barDragSceneY = scenePoint.y
+          b.barDragScreenX = screenPoint.x
+          b.barDragScreenY = screenPoint.y
+
+          var p = rootPoint(mouse)
+          var overTray = p.x >= 0 && p.x <= root.width && p.y >= 0 && p.y <= root.height
+
+          if (overTray) {
+            b.barDragTarget = null
+            b.barDragAfter = false
+            b.barDragTargetGeometry = null
+            root.caretActive = true
+            return
+          }
+          root.caretActive = false
+
+          if (dragIconDelegate) {
+            b.barDragTarget = null
+            b.barDragAfter = false
+            b.barDragTargetGeometry = null
+            return
+          }
+
+          if (typeof b.moduleDropAtScene === "function") {
+            var drop = b.moduleDropAtScene(scenePoint, fakeDragSlot)
+            b.barDragTarget = drop ? drop.slot : null
+            b.barDragAfter = drop ? drop.after : false
+            b.barDragTargetGeometry = (drop && typeof b.dropMarkerRect === "function")
+              ? b.dropMarkerRect(drop.slot, drop.after) : null
+          }
+        }
+      }
+
+      onReleased: function(mouse) {
+        var wasDragging = dragging
+        dragging = false
+        if (!wasDragging) return
+
+        suppressClick = true
+        root.caretActive = false
+        var b = root.effectiveHostBar
+        var target = b ? b.barDragTarget : null
+        var after = b ? b.barDragAfter : false
+        var widgetId = fakeDragSlot.moduleName
+        var wasIcon = dragIconDelegate !== null
+        var dragIco = dragIconDelegate
+        dragDelegate = null
+        dragIconDelegate = null
+
+        var p = rootPoint(mouse)
+        var overTray = p.x >= 0 && p.x <= root.width && p.y >= 0 && p.y <= root.height
+
+        var toRegion = target ? String(target.region || "") : ""
+        var beforeName = ""
+        if (target && b && typeof b.nextVisibleModuleName === "function") {
+          beforeName = after
+            ? String(b.nextVisibleModuleName(target.region, target.moduleName, fakeDragSlot) || "")
+            : String(target.moduleName || "")
+        }
+
+        if (b && typeof b.clearBarDrag === "function") b.clearBarDrag()
+        fakeDragSlot.activeItem = null
+        fakeDragSlot.moduleName = ""
+        mouse.accepted = true
+
+        if (overTray) {
+          return
+        }
+
+        if (wasIcon) {
+          var iconId = String(dragIco.itemId || (dragIco.modelData && dragIco.modelData.id) || "")
+          if (iconId) {
+            root.setPinned(iconId, true)
+          }
+          return
+        }
+
+        if (!widgetId) return
+        if (!toRegion) toRegion = root.barSection
+
+        root.releaseWidgetAt(widgetId, toRegion, beforeName)
+      }
+
+      onCanceled: {
+        dragging = false
+        suppressClick = false
+        root.caretActive = false
+        dragDelegate = null
+        dragIconDelegate = null
+        var b = root.effectiveHostBar
+        if (b && b.barDragSource === fakeDragSlot && typeof b.clearBarDrag === "function") b.clearBarDrag()
+        fakeDragSlot.activeItem = null
+        fakeDragSlot.moduleName = ""
+      }
+
+      onClicked: function(mouse) {
+        if (suppressClick) {
+          suppressClick = false
+          mouse.accepted = true
+          return
+        }
+        var slot = dragOutOverlay.parent
+        var b = root.effectiveHostBar
+        if (slot === root || !b || typeof b.pressModuleClickTarget !== "function"
+            || !b.pressModuleClickTarget(slot, mouse.button, dragOutOverlay.x + mouse.x, dragOutOverlay.y + mouse.y)) {
+          mouse.accepted = false
         }
       }
     }

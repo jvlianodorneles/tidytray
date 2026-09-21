@@ -311,6 +311,13 @@ function releaseFromTray(config, trayId, widgetId, targetSection, targetIndex) {
   }
   if (!removedWrapper) return false
 
+  if (Array.isArray(trayEntry.pinned)) {
+    trayEntry.pinned = trayEntry.pinned.filter(function(id) { return entryId(id) !== widgetId })
+  }
+  if (Array.isArray(trayEntry.hidden)) {
+    trayEntry.hidden = trayEntry.hidden.filter(function(id) { return entryId(id) !== widgetId })
+  }
+
   var secName = targetSection && SECTIONS.indexOf(targetSection) !== -1 ? targetSection : tray.section
   var secList = layout[secName]
   if (!Array.isArray(secList)) {
@@ -318,9 +325,19 @@ function releaseFromTray(config, trayId, widgetId, targetSection, targetIndex) {
     layout[secName] = secList
   }
 
-  var insertIdx = typeof targetIndex === "number" && targetIndex >= 0 && targetIndex <= secList.length
-    ? targetIndex
-    : (secName === tray.section ? tray.index + 1 : secList.length)
+  var insertIdx = secList.length
+  if (typeof targetIndex === "number" && targetIndex >= 0 && targetIndex <= secList.length) {
+    insertIdx = targetIndex
+  } else if (typeof targetIndex === "string" && targetIndex !== "") {
+    for (var j = 0; j < secList.length; j++) {
+      if (entryId(secList[j]) === targetIndex) {
+        insertIdx = j
+        break
+      }
+    }
+  } else if (targetIndex === undefined || targetIndex === null || targetIndex === "") {
+    insertIdx = (secName === tray.section) ? tray.index + 1 : secList.length
+  }
 
   secList.splice(insertIdx, 0, removedWrapper.entry)
 

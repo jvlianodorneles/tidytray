@@ -162,6 +162,17 @@ Item {
     }
   }
 
+  Component.onCompleted: {
+    if (typeof root !== "undefined" && root && typeof root.registerHostedDelegate === "function") {
+      root.registerHostedDelegate(hostedRoot)
+    }
+  }
+  Component.onDestruction: {
+    if (typeof root !== "undefined" && root && typeof root.unregisterHostedDelegate === "function") {
+      root.unregisterHostedDelegate(hostedRoot)
+    }
+  }
+
   // Pointer drag handler: lets clicks and interactions reach the hosted widget directly
   DragHandler {
     id: cellDrag
@@ -171,7 +182,22 @@ Item {
     grabPermissions: PointerHandler.CanTakeOverFromAnything
 
     onActiveChanged: {
-      if (active) hostedRoot.dragStarted(hostedRoot.entry, null)
+      if (active) {
+        hostedRoot.dragStarted(hostedRoot.entry, null)
+        if (typeof root !== "undefined" && root && typeof root.startHostedDrag === "function") {
+          root.startHostedDrag(hostedRoot, cellDrag.centroid.position)
+        }
+      } else {
+        if (typeof root !== "undefined" && root && typeof root.endHostedDrag === "function") {
+          root.endHostedDrag(hostedRoot)
+        }
+      }
+    }
+
+    onCentroidChanged: {
+      if (active && typeof root !== "undefined" && root && typeof root.updateHostedDrag === "function") {
+        root.updateHostedDrag(hostedRoot, cellDrag.centroid.position)
+      }
     }
   }
 }

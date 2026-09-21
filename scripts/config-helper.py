@@ -96,7 +96,7 @@ def capture(tray_id, source_id):
     tray_entry["widgets"].append(wrapper)
     return save_config(config)
 
-def release(tray_id, widget_id):
+def release(tray_id, widget_id, target_section=None, before_name=None):
     config = load_config()
     if not config or "bar" not in config or "layout" not in config["bar"]:
         return False
@@ -127,9 +127,23 @@ def release(tray_id, widget_id):
         unlist_plugin(config, widget_id)
         
     tray_entry["widgets"] = new_widgets
-    sec_name = tray["section"]
+    if "pinned" in tray_entry and isinstance(tray_entry["pinned"], list):
+        tray_entry["pinned"] = [p for p in tray_entry["pinned"] if entry_id(p) != widget_id]
+    if "hidden" in tray_entry and isinstance(tray_entry["hidden"], list):
+        tray_entry["hidden"] = [h for h in tray_entry["hidden"] if entry_id(h) != widget_id]
+
+    sec_name = target_section if (target_section and target_section in SECTIONS) else tray["section"]
     sec_list = layout.get(sec_name, [])
-    insert_idx = tray["index"] + 1
+    
+    insert_idx = len(sec_list)
+    if before_name:
+        for idx, item in enumerate(sec_list):
+            if entry_id(item) == before_name:
+                insert_idx = idx
+                break
+    else:
+        insert_idx = (tray["index"] + 1) if (sec_name == tray["section"]) else len(sec_list)
+
     sec_list.insert(insert_idx, removed)
     layout[sec_name] = sec_list
     return save_config(config)
@@ -190,7 +204,9 @@ def main():
     if action == "capture" and len(sys.argv) >= 4:
         success = capture(tray_id, sys.argv[3])
     elif action == "release" and len(sys.argv) >= 4:
-        success = release(tray_id, sys.argv[3])
+        target_sec = sys.argv[4] if len(sys.argv) >= 5 and sys.argv[4] else None
+        before_name = sys.argv[5] if len(sys.argv) >= 6 and sys.argv[5] else None
+        success = release(tray_id, sys.argv[3], target_sec, before_name)
     elif action == "reorder" and len(sys.argv) >= 5:
         success = reorder(tray_id, sys.argv[3], sys.argv[4])
     elif action == "save-settings" and len(sys.argv) >= 4:

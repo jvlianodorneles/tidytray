@@ -131,6 +131,13 @@ assert.strictEqual(sampleConfig.bar.layout.right[1].id, "omarchy.bluetooth")
 // Plugin should be unlisted since it was listed on capture
 assert.strictEqual(sampleConfig.plugins.length, 0)
 
+// Release omarchy.network from tray before omarchy.menu in left section
+const releasedBefore = M.releaseFromTray(sampleConfig, "io.github.jvlianodorneles.tidytray", "omarchy.network", "left", "omarchy.menu")
+assert.strictEqual(releasedBefore, true)
+assert.strictEqual(trayEntry.widgets.length, 0)
+assert.strictEqual(sampleConfig.bar.layout.left[0].id, "omarchy.network")
+assert.strictEqual(sampleConfig.bar.layout.left[1], "omarchy.menu")
+
 // 6. Bucket toggling
 const toggled1 = M.toggleBucketId(["steam"], [], "steam", "pinned")
 assert.deepStrictEqual(JSON.parse(JSON.stringify(toggled1.pinned)), [])

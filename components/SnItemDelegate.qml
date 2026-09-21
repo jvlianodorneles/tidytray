@@ -88,6 +88,17 @@ Item {
     }
   }
 
+  Component.onCompleted: {
+    if (typeof root !== "undefined" && root && typeof root.registerTrayIconDelegate === "function") {
+      root.registerTrayIconDelegate(snItemRoot)
+    }
+  }
+  Component.onDestruction: {
+    if (typeof root !== "undefined" && root && typeof root.unregisterTrayIconDelegate === "function") {
+      root.unregisterTrayIconDelegate(snItemRoot)
+    }
+  }
+
   MouseArea {
     id: mouseArea
     anchors.fill: parent
@@ -125,7 +136,25 @@ Item {
         if ((dx * dx + dy * dy) > 36) {
           isDragging = true
           snItemRoot.dragStarted(snItemRoot.modelData, mouse)
+          if (typeof root !== "undefined" && root && typeof root.startIconDrag === "function") {
+            root.startIconDrag(snItemRoot, mouse)
+          }
         }
+      } else {
+        if (typeof root !== "undefined" && root && typeof root.updateIconDrag === "function") {
+          root.updateIconDrag(snItemRoot, mouse)
+        }
+      }
+    }
+
+    onReleased: function(mouse) {
+      if (isDragging) {
+        isDragging = false
+        if (typeof root !== "undefined" && root && typeof root.endIconDrag === "function") {
+          root.endIconDrag(snItemRoot, mouse)
+        }
+        mouse.accepted = true
+        return
       }
     }
 
