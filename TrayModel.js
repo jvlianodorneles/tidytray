@@ -87,6 +87,29 @@ function chevronGlyph(icon, vertical, onLeft, onTop) {
   }
 }
 
+function chevronRotation(displayMode, barPosition, onLeft, onTop, expanded) {
+  if (!expanded) return 0
+  var mode = String(displayMode || "").toLowerCase()
+  if (mode === "dropdown" || mode === "drawer") {
+    var pos = String(barPosition || "top").toLowerCase()
+    var isLeft = !!onLeft
+    var isTop = onTop === undefined ? true : !!onTop
+
+    if (pos === "right") {
+      return isTop ? 90 : -90
+    }
+    if (pos === "left") {
+      return isTop ? -90 : 90
+    }
+    if (pos === "bottom") {
+      return isLeft ? -90 : 90
+    }
+    // "top" (default)
+    return isLeft ? 90 : -90
+  }
+  return 180
+}
+
 function normalizeRehideSeconds(value) {
   var n = Math.round(Number(value))
   if (!isFinite(n) || n < 0) return 0
@@ -434,6 +457,7 @@ if (typeof module !== "undefined" && module.exports) {
     normalizeTrigger: normalizeTrigger,
     normalizeIndicatorIcon: normalizeIndicatorIcon,
     chevronGlyph: chevronGlyph,
+    chevronRotation: chevronRotation,
     normalizeRehideSeconds: normalizeRehideSeconds,
     normalizeDuration: normalizeDuration,
     layoutHasWidget: layoutHasWidget,

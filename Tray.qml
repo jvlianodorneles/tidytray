@@ -453,6 +453,7 @@ BarWidget {
 
   readonly property bool onLeft: barSection === "left"
   readonly property bool onTop: barSection === "left"
+  readonly property string barPosition: effectiveHostBar && effectiveHostBar.position ? String(effectiveHostBar.position) : (vertical ? "right" : "top")
 
   function isRealHostBar(b) {
     return b !== null && b !== undefined && typeof b === "object" && "barWidgetRegistry" in b
@@ -1132,8 +1133,9 @@ BarWidget {
       IndicatorButton {
         id: indicatorBtn
         bar: root.effectiveHostBar
+        barPosition: root.barPosition
         dragOver: root.dragOver
-        expanded: root.expanded
+        expanded: root.expanded || root.manageOpen
         displayMode: root.displayMode
         indicatorIcon: root.indicatorIcon
         triggerMode: root.triggerMode

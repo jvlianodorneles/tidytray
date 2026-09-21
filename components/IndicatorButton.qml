@@ -14,7 +14,8 @@ BarIconButton {
   property string triggerMode: "click"     // click, hover
   property bool onLeft: false
   property bool onTop: false
-  property bool vertical: bar ? bar.vertical : false
+  property string barPosition: bar && bar.position ? String(bar.position) : (vertical ? (onLeft ? "left" : "right") : "top")
+  property bool vertical: bar ? bar.vertical : (barPosition === "left" || barPosition === "right")
   property int duration: 200
 
   signal toggleRequested()
@@ -37,13 +38,13 @@ BarIconButton {
   textRotation: {
     if (indicatorRoot.indicatorIcon === "plus") return indicatorRoot.expanded ? 45 : 0
     if (indicatorRoot.isChevronLike) {
-      if (indicatorRoot.displayMode === "dropdown" || indicatorRoot.displayMode === "drawer") {
-        if (indicatorRoot.vertical) {
-          return indicatorRoot.expanded ? 90 : 0
-        }
-        return indicatorRoot.expanded ? (indicatorRoot.onLeft ? 90 : -90) : 0
-      }
-      return indicatorRoot.expanded ? 180 : 0
+      return TrayModel.chevronRotation(
+        indicatorRoot.displayMode,
+        indicatorRoot.barPosition,
+        indicatorRoot.onLeft,
+        indicatorRoot.onTop,
+        indicatorRoot.expanded
+      )
     }
     return 0
   }

@@ -162,4 +162,16 @@ assert.strictEqual(M.chevronGlyph("caret", false, true), "\uf0da")
 assert.strictEqual(M.chevronGlyph("caret", true, false, false), "\uf0d8")
 assert.strictEqual(M.chevronGlyph("plus", false, true), "\uf067")
 
+// Chevron rotation tests
+assert.strictEqual(M.chevronRotation("drawer", "right", false, false, false), 0)
+assert.strictEqual(M.chevronRotation("drawer", "right", false, false, true), -90) // Bottom of right bar -> points LEFT
+assert.strictEqual(M.chevronRotation("drawer", "right", false, true, true), 90)   // Top of right bar -> points LEFT
+assert.strictEqual(M.chevronRotation("drawer", "left", false, false, true), 90)   // Bottom of left bar -> points RIGHT
+assert.strictEqual(M.chevronRotation("drawer", "left", false, true, true), -90)   // Top of left bar -> points RIGHT
+assert.strictEqual(M.chevronRotation("drawer", "bottom", false, false, true), 90) // Right of bottom bar -> points UP
+assert.strictEqual(M.chevronRotation("drawer", "bottom", true, false, true), -90) // Left of bottom bar -> points UP
+assert.strictEqual(M.chevronRotation("drawer", "top", false, false, true), -90)   // Right of top bar -> points DOWN
+assert.strictEqual(M.chevronRotation("drawer", "top", true, false, true), 90)     // Left of top bar -> points DOWN
+assert.strictEqual(M.chevronRotation("inline", "top", false, false, true), 180)   // Inline mode -> flips 180
+
 console.log("All TrayModel unit tests passed successfully!")
