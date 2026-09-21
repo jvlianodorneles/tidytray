@@ -76,10 +76,10 @@ Item {
     var targetIdx = -1
     var after = false
     var minDistance = 999999
-    var kids = itemsRow.children
+    var count = stripRepeater.count
 
-    for (var i = 0; i < kids.length; i++) {
-      var tile = kids[i]
+    for (var i = 0; i < count; i++) {
+      var tile = stripRepeater.itemAt(i)
       if (!tile || !tile.visible || tile.width <= 0) continue
 
       if (dropdownStripRoot.vertical) {
@@ -123,27 +123,22 @@ Item {
       dropCaret.visible = false
       return
     }
-    var kids = itemsRow.children
-    if (dropTargetIndex >= kids.length) {
-      dropCaret.visible = false
-      return
-    }
-    var tile = kids[dropTargetIndex]
+    var tile = stripRepeater.itemAt(dropTargetIndex)
     if (!tile || !tile.visible) {
       dropCaret.visible = false
       return
     }
     var gap = dropdownStripRoot.itemsSpacing
     if (dropdownStripRoot.vertical) {
-      var ty = tile.y + (dropAfter ? (tile.height + gap / 2) : -gap / 2)
-      dropCaret.x = tile.x
+      var ty = itemsRow.y + tile.y + (dropAfter ? (tile.height + gap / 2) : -gap / 2)
+      dropCaret.x = itemsRow.x + tile.x
       dropCaret.y = Math.max(0, ty - dropCaret.height / 2)
       dropCaret.width = tile.width
       dropCaret.height = 3
     } else {
-      var tx = tile.x + (dropAfter ? (tile.width + gap / 2) : -gap / 2)
+      var tx = itemsRow.x + tile.x + (dropAfter ? (tile.width + gap / 2) : -gap / 2)
       dropCaret.x = Math.max(0, tx - dropCaret.width / 2)
-      dropCaret.y = tile.y
+      dropCaret.y = itemsRow.y + tile.y
       dropCaret.width = 3
       dropCaret.height = tile.height
     }
@@ -214,22 +209,23 @@ Item {
       width: flickable.contentWidth
       height: flickable.contentHeight
 
+      // Drop caret inside strip
+      Rectangle {
+        id: dropCaret
+        visible: false
+        z: 100
+        radius: 1.5
+        color: Color.accent
+      }
+
       Grid {
         id: itemsRow
         anchors.centerIn: parent
         columns: dropdownStripRoot.vertical ? 1 : 9999
         spacing: dropdownStripRoot.itemsSpacing
 
-        // Drop caret inside strip
-        Rectangle {
-          id: dropCaret
-          visible: false
-          z: 100
-          radius: 1.5
-          color: Color.accent
-        }
-
         Repeater {
+          id: stripRepeater
           model: dropdownStripRoot.effectiveItems
           delegate: Item {
             id: stripTile

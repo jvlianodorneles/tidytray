@@ -846,8 +846,8 @@ BarWidget {
   function startHostedDrag(delegate, localPos) {
     if (!delegate) return false
 
-    var isDrawer = drawerGridPanel && drawerGridPanel.open && drawerGridComp && isDescendantOf(delegate, drawerGridComp)
-    var isDropdown = (root.displayMode === "dropdown") && dropdownStrip && isDescendantOf(delegate, dropdownStrip)
+    var isDrawer = drawerGridPanel && drawerGridPanel.open && drawerGridComp && (isDescendantOf(delegate, drawerGridComp) || drawerGridComp.indexOfDelegate(delegate) >= 0)
+    var isDropdown = (root.displayMode === "dropdown") && dropdownStrip && (isDescendantOf(delegate, dropdownStrip) || dropdownStrip.indexOfDelegate(delegate) >= 0)
 
     if (isDrawer) {
       popupDragActive = true
@@ -898,6 +898,10 @@ BarWidget {
         var dp = drawerGridComp.mapFromItem(delegate, lx, ly)
         var inDrawer = dp.x >= 0 && dp.x <= drawerGridComp.width && dp.y >= 0 && dp.y <= drawerGridComp.height
         if (inDrawer) {
+          if (!drawerGridComp.isDragActive) {
+            var fromIdx = drawerGridComp.indexOfDelegate(delegate)
+            drawerGridComp.startDrag(fromIdx, delegate, { x: lx, y: ly })
+          }
           drawerGridComp.updateDrag(dp.x, dp.y)
           var bObj = root.effectiveHostBar
           if (bObj && bObj.barDragSource === fakeDragSlot && typeof bObj.clearBarDrag === "function") {
@@ -924,6 +928,10 @@ BarWidget {
         var ddp = dropdownStrip.mapFromItem(delegate, lx, ly)
         var inDropdown = ddp.x >= 0 && ddp.x <= dropdownStrip.width && ddp.y >= 0 && ddp.y <= dropdownStrip.height
         if (inDropdown) {
+          if (!dropdownStrip.isDragActive) {
+            var fromIdx2 = dropdownStrip.indexOfDelegate(delegate)
+            dropdownStrip.startDrag(fromIdx2, delegate, { x: lx, y: ly })
+          }
           dropdownStrip.updateDrag(ddp.x, ddp.y)
           var bObj2 = root.effectiveHostBar
           if (bObj2 && bObj2.barDragSource === fakeDragSlot && typeof bObj2.clearBarDrag === "function") {
@@ -987,8 +995,11 @@ BarWidget {
   }
 
   function endHostedDrag(delegate) {
-    if (popupDragActive) {
-      if (popupDragMode === "drawer" && drawerGridComp && drawerGridComp.isDragActive) {
+    var wasPopupDrag = popupDragActive
+    var pMode = popupDragMode
+
+    if (wasPopupDrag) {
+      if (pMode === "drawer" && drawerGridComp && drawerGridComp.isDragActive) {
         drawerGridComp.endDrag()
         popupDragActive = false
         popupDragMode = ""
@@ -997,7 +1008,7 @@ BarWidget {
         if (b && typeof b.clearBarDrag === "function") b.clearBarDrag()
         return
       }
-      if (popupDragMode === "dropdown" && dropdownStrip && dropdownStrip.isDragActive) {
+      if (pMode === "dropdown" && dropdownStrip && dropdownStrip.isDragActive) {
         dropdownStrip.endDrag()
         popupDragActive = false
         popupDragMode = ""
@@ -1034,11 +1045,8 @@ BarWidget {
     activePopupDragDelegate = null
     root.caretActive = false
 
-    if (!widgetId) return
-
-    if (!toRegion) {
-      toRegion = root.barSection
-    }
+    // Never eject to bar if there was no specific drop target on the bar!
+    if (!widgetId || !target || !toRegion) return
 
     root.releaseWidgetAt(widgetId, toRegion, beforeName)
     root.collapse()
@@ -1047,8 +1055,8 @@ BarWidget {
   function startIconDrag(delegate, mouse) {
     if (!delegate) return false
 
-    var isDrawer = drawerGridPanel && drawerGridPanel.open && drawerGridComp && isDescendantOf(delegate, drawerGridComp)
-    var isDropdown = (root.displayMode === "dropdown") && dropdownStrip && isDescendantOf(delegate, dropdownStrip)
+    var isDrawer = drawerGridPanel && drawerGridPanel.open && drawerGridComp && (isDescendantOf(delegate, drawerGridComp) || drawerGridComp.indexOfDelegate(delegate) >= 0)
+    var isDropdown = (root.displayMode === "dropdown") && dropdownStrip && (isDescendantOf(delegate, dropdownStrip) || dropdownStrip.indexOfDelegate(delegate) >= 0)
 
     if (isDrawer) {
       popupDragActive = true
@@ -1099,6 +1107,10 @@ BarWidget {
         var dp = drawerGridComp.mapFromItem(delegate, lx, ly)
         var inDrawer = dp.x >= 0 && dp.x <= drawerGridComp.width && dp.y >= 0 && dp.y <= drawerGridComp.height
         if (inDrawer) {
+          if (!drawerGridComp.isDragActive) {
+            var fromIdx = drawerGridComp.indexOfDelegate(delegate)
+            drawerGridComp.startDrag(fromIdx, delegate, mouse)
+          }
           drawerGridComp.updateDrag(dp.x, dp.y)
           var bObj = root.effectiveHostBar
           if (bObj && bObj.barDragSource === fakeDragSlot && typeof bObj.clearBarDrag === "function") {
@@ -1125,6 +1137,10 @@ BarWidget {
         var ddp = dropdownStrip.mapFromItem(delegate, lx, ly)
         var inDropdown = ddp.x >= 0 && ddp.x <= dropdownStrip.width && ddp.y >= 0 && ddp.y <= dropdownStrip.height
         if (inDropdown) {
+          if (!dropdownStrip.isDragActive) {
+            var fromIdx2 = dropdownStrip.indexOfDelegate(delegate)
+            dropdownStrip.startDrag(fromIdx2, delegate, mouse)
+          }
           dropdownStrip.updateDrag(ddp.x, ddp.y)
           var bObj2 = root.effectiveHostBar
           if (bObj2 && bObj2.barDragSource === fakeDragSlot && typeof bObj2.clearBarDrag === "function") {
@@ -1177,8 +1193,11 @@ BarWidget {
   }
 
   function endIconDrag(delegate, mouse) {
-    if (popupDragActive) {
-      if (popupDragMode === "drawer" && drawerGridComp && drawerGridComp.isDragActive) {
+    var wasPopupDrag = popupDragActive
+    var pMode = popupDragMode
+
+    if (wasPopupDrag) {
+      if (pMode === "drawer" && drawerGridComp && drawerGridComp.isDragActive) {
         drawerGridComp.endDrag()
         popupDragActive = false
         popupDragMode = ""
@@ -1187,7 +1206,7 @@ BarWidget {
         if (b && typeof b.clearBarDrag === "function") b.clearBarDrag()
         return
       }
-      if (popupDragMode === "dropdown" && dropdownStrip && dropdownStrip.isDragActive) {
+      if (pMode === "dropdown" && dropdownStrip && dropdownStrip.isDragActive) {
         dropdownStrip.endDrag()
         popupDragActive = false
         popupDragMode = ""
@@ -1227,6 +1246,9 @@ BarWidget {
     root.caretActive = false
 
     if (!itemId) return
+
+    // Never pin/eject if it was a popup drag and not dropped on the host bar
+    if (wasPopupDrag) return
 
     if (!overTray) {
       root.setPinned(itemId, true)

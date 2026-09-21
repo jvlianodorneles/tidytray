@@ -81,9 +81,9 @@ Item {
     var minDistance = 999999
 
     if (viewMode === "grid") {
-      var kids = flowView.children
-      for (var i = 0; i < kids.length; i++) {
-        var tile = kids[i]
+      var count = flowRepeater.count
+      for (var i = 0; i < count; i++) {
+        var tile = flowRepeater.itemAt(i)
         if (!tile || !tile.visible || tile.width <= 0) continue
         var tileX = flowView.x + tile.x
         var tileY = flowView.y + tile.y
@@ -105,9 +105,9 @@ Item {
         }
       }
     } else {
-      var rows = listViewCol.children
-      for (var j = 0; j < rows.length; j++) {
-        var row = rows[j]
+      var count2 = listRepeater.count
+      for (var j = 0; j < count2; j++) {
+        var row = listRepeater.itemAt(j)
         if (!row || !row.visible || row.height <= 0) continue
         var rowY = listViewCol.y + row.y
 
@@ -140,12 +140,7 @@ Item {
       return
     }
     if (viewMode === "grid") {
-      var kids = flowView.children
-      if (dropTargetIndex >= kids.length) {
-        dropCaret.visible = false
-        return
-      }
-      var tile = kids[dropTargetIndex]
+      var tile = flowRepeater.itemAt(dropTargetIndex)
       if (!tile || !tile.visible) {
         dropCaret.visible = false
         return
@@ -158,12 +153,7 @@ Item {
       dropCaret.height = tile.height
       dropCaret.visible = true
     } else {
-      var rows = listViewCol.children
-      if (dropTargetIndex >= rows.length) {
-        dropCaret.visible = false
-        return
-      }
-      var row = rows[dropTargetIndex]
+      var row = listRepeater.itemAt(dropTargetIndex)
       if (!row || !row.visible) {
         dropCaret.visible = false
         return
