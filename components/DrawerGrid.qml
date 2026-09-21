@@ -103,9 +103,16 @@ Item {
         }
 
         MouseArea {
+          id: viewToggleMouse
           anchors.fill: parent
+          hoverEnabled: true
           cursorShape: Qt.PointingHandCursor
           onClicked: drawerGridRoot.viewMode = (drawerGridRoot.viewMode === "grid" ? "list" : "grid")
+        }
+
+        PanelToolTip {
+          visible: viewToggleMouse.containsMouse
+          text: drawerGridRoot.viewMode === "grid" ? "Switch to list view" : "Switch to grid view"
         }
       }
 
@@ -127,9 +134,16 @@ Item {
         }
 
         MouseArea {
+          id: settingsBtnMouse
           anchors.fill: parent
+          hoverEnabled: true
           cursorShape: Qt.PointingHandCursor
           onClicked: drawerGridRoot.openSettingsRequested()
+        }
+
+        PanelToolTip {
+          visible: settingsBtnMouse.containsMouse
+          text: "Manage TidyTray (S)"
         }
       }
     }

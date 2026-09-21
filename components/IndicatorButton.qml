@@ -28,7 +28,7 @@ BarIconButton {
   visible: indicatorIcon !== "none"
   active: indicatorRoot.expanded || indicatorRoot.dragOver
   activeColor: Color.accent
-  tooltipText: "TidyTray"
+  tooltipText: indicatorRoot.expanded ? "Collapse TidyTray" : "Expand TidyTray (Right-click: Manage)"
 
   text: TrayModel.chevronGlyph(indicatorRoot.indicatorIcon, indicatorRoot.vertical, indicatorRoot.onLeft)
 

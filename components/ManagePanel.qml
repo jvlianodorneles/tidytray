@@ -186,6 +186,11 @@ Item {
             cursorShape: Qt.PointingHandCursor
             onClicked: manageRoot.closeRequested()
           }
+
+          PanelToolTip {
+            visible: closeMouse.containsMouse
+            text: "Close (Esc)"
+          }
         }
       }
     }
@@ -413,9 +418,16 @@ Item {
                           color: manageRoot.mutedColor
                         }
                         MouseArea {
+                          id: moveUpMouse
                           anchors.fill: parent
+                          hoverEnabled: true
                           cursorShape: Qt.PointingHandCursor
                           onClicked: manageRoot.reorderWidget(widgetRowWrapper.index, widgetRowWrapper.index - 1)
+                        }
+
+                        PanelToolTip {
+                          visible: parent.visible && moveUpMouse.containsMouse
+                          text: "Move up"
                         }
                       }
 
@@ -439,9 +451,16 @@ Item {
                           color: manageRoot.mutedColor
                         }
                         MouseArea {
+                          id: moveDownMouse
                           anchors.fill: parent
+                          hoverEnabled: true
                           cursorShape: Qt.PointingHandCursor
                           onClicked: manageRoot.reorderWidget(widgetRowWrapper.index, widgetRowWrapper.index + 1)
+                        }
+
+                        PanelToolTip {
+                          visible: parent.visible && moveDownMouse.containsMouse
+                          text: "Move down"
                         }
                       }
 
@@ -464,9 +483,16 @@ Item {
                           color: widgetRowWrapper.isPinned ? Color.background : manageRoot.mutedColor
                         }
                         MouseArea {
+                          id: pinWidgetMouse
                           anchors.fill: parent
+                          hoverEnabled: true
                           cursorShape: Qt.PointingHandCursor
                           onClicked: manageRoot.togglePinnedWidget(widgetRowWrapper.wId)
+                        }
+
+                        PanelToolTip {
+                          visible: pinWidgetMouse.containsMouse
+                          text: widgetRowWrapper.isPinned ? "Unpin from bar" : "Pin directly to bar"
                         }
                       }
 
@@ -489,9 +515,16 @@ Item {
                           color: widgetRowWrapper.isHidden ? Color.background : manageRoot.mutedColor
                         }
                         MouseArea {
+                          id: hideWidgetMouse
                           anchors.fill: parent
+                          hoverEnabled: true
                           cursorShape: Qt.PointingHandCursor
                           onClicked: manageRoot.toggleHiddenWidget(widgetRowWrapper.wId)
+                        }
+
+                        PanelToolTip {
+                          visible: hideWidgetMouse.containsMouse
+                          text: widgetRowWrapper.isHidden ? "Unhide item" : "Hide from drawer/dropdown"
                         }
                       }
 
@@ -514,9 +547,16 @@ Item {
                           color: manageRoot.mutedColor
                         }
                         MouseArea {
+                          id: ejectWidgetMouse
                           anchors.fill: parent
+                          hoverEnabled: true
                           cursorShape: Qt.PointingHandCursor
                           onClicked: manageRoot.releaseWidget(widgetRowWrapper.wId)
+                        }
+
+                        PanelToolTip {
+                          visible: ejectWidgetMouse.containsMouse
+                          text: "Eject back to bar"
                         }
                       }
                     }
@@ -609,9 +649,16 @@ Item {
                     color: Color.background
                   }
                   MouseArea {
+                    id: captureWidgetMouse
                     anchors.fill: parent
+                    hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
                     onClicked: manageRoot.captureWidget(candidateRowDelegate.cId)
+                  }
+
+                  PanelToolTip {
+                    visible: captureWidgetMouse.containsMouse
+                    text: "Capture into TidyTray"
                   }
                 }
               }
@@ -724,9 +771,16 @@ Item {
                       color: sniRowDelegate.isPinned ? Color.background : manageRoot.mutedColor
                     }
                     MouseArea {
+                      id: pinSniMouse
                       anchors.fill: parent
+                      hoverEnabled: true
                       cursorShape: Qt.PointingHandCursor
                       onClicked: manageRoot.togglePinnedSni(sniRowDelegate.sId)
+                    }
+
+                    PanelToolTip {
+                      visible: pinSniMouse.containsMouse
+                      text: sniRowDelegate.isPinned ? "Unpin from bar" : "Pin directly to bar"
                     }
                   }
 
@@ -749,9 +803,16 @@ Item {
                       color: sniRowDelegate.isHidden ? Color.background : manageRoot.mutedColor
                     }
                     MouseArea {
+                      id: hideSniMouse
                       anchors.fill: parent
+                      hoverEnabled: true
                       cursorShape: Qt.PointingHandCursor
                       onClicked: manageRoot.toggleHiddenSni(sniRowDelegate.sId)
+                    }
+
+                    PanelToolTip {
+                      visible: hideSniMouse.containsMouse
+                      text: sniRowDelegate.isHidden ? "Unhide item" : "Hide from drawer/dropdown"
                     }
                   }
                 }
@@ -1034,13 +1095,20 @@ Item {
           }
 
           MouseArea {
+            id: dedupMouse
             anchors.fill: parent
+            hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
             onClicked: {
               var copy = Object.assign({}, manageRoot.currentSettings)
               copy.deduplicateKnown = !dedupCheckbox.checked
               manageRoot.updateSettingsRequested(copy)
             }
+          }
+
+          PanelToolTip {
+            visible: dedupMouse.containsMouse
+            text: "Suppress duplicate tray icons when a native bar widget is loaded (e.g. Dropbox)"
           }
         }
 
