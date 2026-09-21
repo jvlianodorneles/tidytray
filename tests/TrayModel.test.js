@@ -155,8 +155,11 @@ assert.deepStrictEqual(JSON.parse(JSON.stringify(M.getPersistedManageState())), 
 assert.strictEqual(M.chevronGlyph("chevron", false, false), "\uf053")
 assert.strictEqual(M.chevronGlyph("chevron", false, true), "\uf054")
 assert.strictEqual(M.chevronGlyph("chevron", true, false), "\uf078")
+assert.strictEqual(M.chevronGlyph("chevron", true, false, true), "\uf078")
+assert.strictEqual(M.chevronGlyph("chevron", true, false, false), "\uf077")
 assert.strictEqual(M.chevronGlyph("caret", false, false), "\uf0d9")
 assert.strictEqual(M.chevronGlyph("caret", false, true), "\uf0da")
+assert.strictEqual(M.chevronGlyph("caret", true, false, false), "\uf0d8")
 assert.strictEqual(M.chevronGlyph("plus", false, true), "\uf067")
 
 console.log("All TrayModel unit tests passed successfully!")

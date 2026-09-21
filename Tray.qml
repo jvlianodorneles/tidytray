@@ -395,8 +395,9 @@ BarWidget {
 
   readonly property int pinnedExtent: vertical ? pinnedRow.implicitHeight : pinnedRow.implicitWidth
   readonly property int indicatorExtent: showIndicator ? (vertical ? indicatorBtn.implicitHeight : indicatorBtn.implicitWidth) : 0
+  readonly property int caretExtent: caretActive ? (vertical ? dropCaret.implicitHeight : dropCaret.implicitWidth) : 0
 
-  readonly property int totalExtent: pinnedExtent + indicatorExtent + inlineContentExtent + (caretActive ? 4 : 0)
+  readonly property int totalExtent: pinnedExtent + indicatorExtent + inlineContentExtent + caretExtent
 
   implicitWidth: vertical ? barSize : Math.max(showIndicator ? indicatorExtent : 0, totalExtent)
   implicitHeight: vertical ? Math.max(showIndicator ? indicatorExtent : 0, totalExtent) : barSize
@@ -451,6 +452,7 @@ BarWidget {
   }
 
   readonly property bool onLeft: barSection === "left"
+  readonly property bool onTop: barSection === "left"
 
   function isRealHostBar(b) {
     return b !== null && b !== undefined && typeof b === "object" && "barWidgetRegistry" in b
@@ -1066,20 +1068,29 @@ BarWidget {
       }
     }
 
-    // Main Row / Column
-    Row {
+    // Main Bar Container (Unifies horizontal and vertical bar layouts)
+    Item {
       id: mainBarRow
       anchors.fill: parent
-      spacing: 0
-      visible: !root.vertical
-      layoutDirection: root.onLeft ? Qt.LeftToRight : Qt.RightToLeft
+      visible: true
 
-      // 1. Pinned Items Row
-      Row {
+      // 1. Pinned Items Container
+      Grid {
         id: pinnedRow
         spacing: Style.space(4)
-        height: parent.height
+        columns: root.vertical ? 1 : -1
+        rows: root.vertical ? -1 : 1
+        flow: root.vertical ? Grid.TopToBottom : Grid.LeftToRight
         layoutDirection: root.onLeft ? Qt.LeftToRight : Qt.RightToLeft
+
+        width: root.vertical ? parent.width : implicitWidth
+        height: root.vertical ? implicitHeight : parent.height
+
+        anchors.verticalCenter: root.vertical ? undefined : parent.verticalCenter
+        anchors.horizontalCenter: root.vertical ? parent.horizontalCenter : undefined
+
+        x: root.vertical ? 0 : (root.onLeft ? 0 : (parent.width - width))
+        y: root.vertical ? (root.onTop ? 0 : (parent.height - height)) : 0
 
         Repeater {
           model: root.pinnedHostedWidgets
@@ -1106,7 +1117,15 @@ BarWidget {
         id: dropCaret
         active: root.caretActive
         vertical: root.vertical
-        height: parent.height
+
+        width: root.vertical ? parent.width : implicitWidth
+        height: root.vertical ? implicitHeight : parent.height
+
+        anchors.verticalCenter: root.vertical ? undefined : parent.verticalCenter
+        anchors.horizontalCenter: root.vertical ? parent.horizontalCenter : undefined
+
+        x: root.vertical ? 0 : (root.onLeft ? (pinnedRow.x + pinnedRow.width) : (pinnedRow.x - width))
+        y: root.vertical ? (root.onTop ? (pinnedRow.y + pinnedRow.height) : (pinnedRow.y - height)) : 0
       }
 
       // 3. Indicator Button (Chevron / Dot / Plus)
@@ -1120,8 +1139,22 @@ BarWidget {
         triggerMode: root.triggerMode
         duration: root.revealDuration
         onLeft: root.onLeft
+        onTop: root.onTop
+        vertical: root.vertical
         visible: root.showIndicator
-        height: parent.height
+
+        width: root.vertical ? parent.width : implicitWidth
+        height: root.vertical ? implicitHeight : parent.height
+
+        anchors.verticalCenter: root.vertical ? undefined : parent.verticalCenter
+        anchors.horizontalCenter: root.vertical ? parent.horizontalCenter : undefined
+
+        x: root.vertical ? 0 : (root.onLeft
+             ? (dropCaret.x + dropCaret.width)
+             : (dropCaret.x - (visible ? width : 0)))
+        y: root.vertical ? (root.onTop
+             ? (dropCaret.y + dropCaret.height)
+             : (dropCaret.y - (visible ? height : 0))) : 0
 
         onToggleRequested: root.toggle()
         onRightClicked: root.openManage()
@@ -1130,28 +1163,57 @@ BarWidget {
       // 4. Inline Drawer Container (Smooth Slide-out Animation)
       Item {
         id: inlineDrawerBox
-        width: root.inlineContentExtent
-        height: parent.height
+        width: root.vertical ? parent.width : root.inlineContentExtent
+        height: root.vertical ? root.inlineContentExtent : parent.height
         clip: true
         visible: (root.displayMode === "inline" || root.displayMode === "flat")
-                 && (root.expanded || root.displayMode === "flat" || width > 0)
+                 && (root.expanded || root.displayMode === "flat" || (root.vertical ? height > 0 : width > 0))
         enabled: root.expanded || root.displayMode === "flat"
 
+        anchors.verticalCenter: root.vertical ? undefined : parent.verticalCenter
+        anchors.horizontalCenter: root.vertical ? parent.horizontalCenter : undefined
+
+        x: root.vertical ? 0 : (root.onLeft
+             ? (indicatorBtn.visible ? indicatorBtn.x + indicatorBtn.width : dropCaret.x + dropCaret.width)
+             : (indicatorBtn.visible ? indicatorBtn.x - width : dropCaret.x - width))
+        y: root.vertical ? (root.onTop
+             ? (indicatorBtn.visible ? indicatorBtn.y + indicatorBtn.height : dropCaret.y + dropCaret.height)
+             : (indicatorBtn.visible ? indicatorBtn.y - height : dropCaret.y - height)) : 0
+
         Behavior on width {
+          enabled: !root.vertical
           NumberAnimation {
             duration: root.revealDuration
             easing.type: Easing.OutCubic
           }
         }
 
-        Row {
+        Behavior on height {
+          enabled: root.vertical
+          NumberAnimation {
+            duration: root.revealDuration
+            easing.type: Easing.OutCubic
+          }
+        }
+
+        Grid {
           id: inlineContentRow
           spacing: Style.space(4)
-          anchors.verticalCenter: parent.verticalCenter
-          anchors.right: root.onLeft ? undefined : parent.right
-          anchors.left: root.onLeft ? parent.left : undefined
-          height: parent.height
+          columns: root.vertical ? 1 : -1
+          rows: root.vertical ? -1 : 1
+          flow: root.vertical ? Grid.TopToBottom : Grid.LeftToRight
           layoutDirection: root.onLeft ? Qt.LeftToRight : Qt.RightToLeft
+
+          width: root.vertical ? parent.width : implicitWidth
+          height: root.vertical ? implicitHeight : parent.height
+
+          anchors.verticalCenter: root.vertical ? undefined : parent.verticalCenter
+          anchors.horizontalCenter: root.vertical ? parent.horizontalCenter : undefined
+
+          anchors.right: (!root.vertical && !root.onLeft) ? parent.right : undefined
+          anchors.left: (!root.vertical && root.onLeft) ? parent.left : undefined
+          anchors.bottom: (root.vertical && !root.onTop) ? parent.bottom : undefined
+          anchors.top: (root.vertical && root.onTop) ? parent.top : undefined
 
           Repeater {
             model: (root.displayMode === "inline" || root.displayMode === "flat") ? root.drawerHostedWidgets : []

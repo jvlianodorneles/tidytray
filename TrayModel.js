@@ -70,19 +70,20 @@ function normalizeIndicatorIcon(value) {
   return INDICATOR_ICONS.indexOf(icon) !== -1 ? icon : "chevron"
 }
 
-function chevronGlyph(icon, vertical, onLeft) {
+function chevronGlyph(icon, vertical, onLeft, onTop) {
   var isLeft = !!onLeft
+  var isTop = onTop === undefined ? true : !!onTop
   switch (String(icon || "").toLowerCase()) {
-    case "caret": return vertical ? "\uf0d7" : (isLeft ? "\uf0da" : "\uf0d9");
-    case "angle": return vertical ? "\uf107" : (isLeft ? "\uf105" : "\uf104");
-    case "arrow": return vertical ? "\uf063" : (isLeft ? "\uf061" : "\uf060");
-    case "double": return vertical ? "\uf103" : (isLeft ? "\uf101" : "\uf100");
+    case "caret": return vertical ? (isTop ? "\uf0d7" : "\uf0d8") : (isLeft ? "\uf0da" : "\uf0d9");
+    case "angle": return vertical ? (isTop ? "\uf107" : "\uf106") : (isLeft ? "\uf105" : "\uf104");
+    case "arrow": return vertical ? (isTop ? "\uf063" : "\uf062") : (isLeft ? "\uf061" : "\uf060");
+    case "double": return vertical ? (isTop ? "\uf103" : "\uf102") : (isLeft ? "\uf101" : "\uf100");
     case "dot": return "\ueb8a";
     case "dots": return "\uf141";
     case "plus": return "\uf067";
     case "chevron":
     default:
-      return vertical ? "\uf078" : (isLeft ? "\uf054" : "\uf053");
+      return vertical ? (isTop ? "\uf078" : "\uf077") : (isLeft ? "\uf054" : "\uf053");
   }
 }
 
