@@ -2,6 +2,8 @@
 
 The definitive unified system tray and bar widget organizer for **[Omarchy](https://omarchy.org/)** (Quickshell on Wayland / Hyprland).
 
+![TidyTray Preview](preview.png)
+
 TidyTray synthesizes the best architectural ideas and UX conventions from 7 leading bar organizer plugins into a single, high-craft, keyboard-accessible component:
 - **`omarchy-tinytray`**: Dual-citizen hosting of both SNI apps and bar widgets, with smart deduplication (suppresses native Dropbox tray icon when Omarchy's Dropbox widget is active) and ghost item filtering (LocalSend).
 - **`omaice`**: Dynamic layout concealment and floating dock strip mode with zero bar-neighbor shifting.
