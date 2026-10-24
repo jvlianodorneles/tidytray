@@ -138,6 +138,26 @@ assert.strictEqual(trayEntry.widgets.length, 0)
 assert.strictEqual(sampleConfig.bar.layout.left[0].id, "omarchy.network")
 assert.strictEqual(sampleConfig.bar.layout.left[1], "omarchy.menu")
 
+// Release with "after:<id>", "__start__", "__end__", and centerBegin/centerEnd sections
+assert.deepStrictEqual(Array.from(M.SECTIONS), ["left", "centerBegin", "center", "centerEnd", "right"])
+trayEntry.widgets.push({ entry: { id: "omarchy.audio" } })
+trayEntry.widgets.push({ entry: { id: "omarchy.battery" } })
+trayEntry.widgets.push({ entry: { id: "omarchy.weather" } })
+
+const releasedAfter = M.releaseFromTray(sampleConfig, "io.github.jvlianodorneles.tidytray", "omarchy.audio", "left", "after:omarchy.network")
+assert.strictEqual(releasedAfter, true)
+assert.strictEqual(M.entryId(sampleConfig.bar.layout.left[1]), "omarchy.audio")
+assert.strictEqual(M.entryId(sampleConfig.bar.layout.left[2]), "omarchy.menu")
+
+const releasedStart = M.releaseFromTray(sampleConfig, "io.github.jvlianodorneles.tidytray", "omarchy.battery", "right", "__start__")
+assert.strictEqual(releasedStart, true)
+assert.strictEqual(M.entryId(sampleConfig.bar.layout.right[0]), "omarchy.battery")
+
+const releasedCenterEnd = M.releaseFromTray(sampleConfig, "io.github.jvlianodorneles.tidytray", "omarchy.weather", "centerEnd", "__end__")
+assert.strictEqual(releasedCenterEnd, true)
+assert.strictEqual(sampleConfig.bar.layout.centerEnd.length, 1)
+assert.strictEqual(M.entryId(sampleConfig.bar.layout.centerEnd[0]), "omarchy.weather")
+
 // 6. Bucket toggling
 const toggled1 = M.toggleBucketId(["steam"], [], "steam", "pinned")
 assert.deepStrictEqual(JSON.parse(JSON.stringify(toggled1.pinned)), [])

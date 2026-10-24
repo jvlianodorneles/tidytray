@@ -133,7 +133,7 @@ Item {
       if (!isDragging) {
         var dx = mouse.x - pressX
         var dy = mouse.y - pressY
-        if ((dx * dx + dy * dy) > 36) {
+        if ((dx * dx + dy * dy) > 16) {
           isDragging = true
           snItemRoot.dragStarted(snItemRoot.modelData, mouse)
           if (typeof root !== "undefined" && root && typeof root.startIconDrag === "function") {
@@ -155,6 +155,15 @@ Item {
         }
         mouse.accepted = true
         return
+      }
+    }
+
+    onCanceled: {
+      if (isDragging) {
+        isDragging = false
+        if (typeof root !== "undefined" && root && typeof root.endIconDrag === "function") {
+          root.endIconDrag(snItemRoot, null)
+        }
       }
     }
 

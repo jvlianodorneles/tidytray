@@ -3,7 +3,7 @@
 // TrayModel.js: Pure data functions for TidyTray (omarchy bar widget & tray manager).
 // Designed to run both within QML (.pragma library) and under Node.js for tests.
 
-var SECTIONS = ["left", "center", "right"]
+var SECTIONS = ["left", "centerBegin", "center", "centerEnd", "right"]
 var DISPLAY_MODES = ["inline", "dropdown", "drawer"]
 var INDICATOR_ICONS = ["chevron", "dot", "dots", "plus"]
 var TRIGGERS = ["click", "hover"]
@@ -353,10 +353,24 @@ function releaseFromTray(config, trayId, widgetId, targetSection, targetIndex) {
   if (typeof targetIndex === "number" && targetIndex >= 0 && targetIndex <= secList.length) {
     insertIdx = targetIndex
   } else if (typeof targetIndex === "string" && targetIndex !== "") {
-    for (var j = 0; j < secList.length; j++) {
-      if (entryId(secList[j]) === targetIndex) {
-        insertIdx = j
-        break
+    if (targetIndex === "__start__") {
+      insertIdx = 0
+    } else if (targetIndex === "__end__") {
+      insertIdx = secList.length
+    } else if (targetIndex.indexOf("after:") === 0) {
+      var afterId = targetIndex.substring(6)
+      for (var k = 0; k < secList.length; k++) {
+        if (entryId(secList[k]) === afterId) {
+          insertIdx = k + 1
+          break
+        }
+      }
+    } else {
+      for (var j = 0; j < secList.length; j++) {
+        if (entryId(secList[j]) === targetIndex) {
+          insertIdx = j
+          break
+        }
       }
     }
   } else if (targetIndex === undefined || targetIndex === null || targetIndex === "") {

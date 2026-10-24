@@ -57,7 +57,7 @@ Item {
     var layout = manageRoot.bar && manageRoot.bar.layoutConfig ? manageRoot.bar.layoutConfig : null
     if (!layout) return []
     var out = []
-    var sections = ["right", "center", "left"]
+    var sections = ["right", "centerEnd", "center", "centerBegin", "left"]
     for (var s = 0; s < sections.length; s++) {
       var entries = layout[sections[s]]
       if (!Array.isArray(entries)) continue

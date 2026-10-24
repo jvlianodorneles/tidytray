@@ -4,7 +4,7 @@ import os
 import json
 
 CONFIG_PATH = os.environ.get("OMARCHY_SHELL_JSON") or os.path.expanduser("~/.config/omarchy/shell.json")
-SECTIONS = ["left", "center", "right"]
+SECTIONS = ["left", "centerBegin", "center", "centerEnd", "right"]
 
 def entry_id(entry):
     if isinstance(entry, str):
@@ -52,16 +52,24 @@ def ensure_plugin_listed(config, plugin_id):
         return False
     if "plugins" not in config or not isinstance(config["plugins"], list):
         config["plugins"] = []
-    if plugin_id not in config["plugins"]:
-        config["plugins"].append(plugin_id)
-        return True
-    return False
+    for e in config["plugins"]:
+        eid = e if isinstance(e, str) else (str(e.get("id", "")) if isinstance(e, dict) else "")
+        if eid == plugin_id:
+            return False
+    config["plugins"].append({"id": plugin_id})
+    return True
 
 def unlist_plugin(config, plugin_id):
     if not plugin_id or "plugins" not in config or not isinstance(config["plugins"], list):
         return
-    if plugin_id in config["plugins"]:
-        config["plugins"].remove(plugin_id)
+    new_plugins = []
+    for e in config["plugins"]:
+        if not e:
+            continue
+        eid = e if isinstance(e, str) else (str(e.get("id", "")) if isinstance(e, dict) else "")
+        if eid != plugin_id:
+            new_plugins.append(e)
+    config["plugins"] = new_plugins
 
 def capture(tray_id, source_id):
     config = load_config()
@@ -137,10 +145,21 @@ def release(tray_id, widget_id, target_section=None, before_name=None):
     
     insert_idx = len(sec_list)
     if before_name:
-        for idx, item in enumerate(sec_list):
-            if entry_id(item) == before_name:
-                insert_idx = idx
-                break
+        if before_name == "__start__":
+            insert_idx = 0
+        elif before_name == "__end__":
+            insert_idx = len(sec_list)
+        elif before_name.startswith("after:"):
+            after_id = before_name[6:]
+            for idx, item in enumerate(sec_list):
+                if entry_id(item) == after_id:
+                    insert_idx = idx + 1
+                    break
+        else:
+            for idx, item in enumerate(sec_list):
+                if entry_id(item) == before_name:
+                    insert_idx = idx
+                    break
     else:
         insert_idx = (tray["index"] + 1) if (sec_name == tray["section"]) else len(sec_list)
 

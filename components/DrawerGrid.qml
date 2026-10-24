@@ -320,6 +320,7 @@ Item {
       width: parent.width
       height: Math.min(280, contentContainer.implicitHeight)
       contentHeight: contentContainer.implicitHeight
+      interactive: !drawerGridRoot.isDragActive
       clip: true
 
       Item {
@@ -423,6 +424,9 @@ Item {
               required property int index
 
               readonly property string wId: modelData ? String(modelData.id || "") : ""
+              readonly property string widgetId: modelData && modelData.isWidget ? wId : ""
+              readonly property string itemId: modelData && modelData.isSni ? wId : ""
+              readonly property Item dragTargetItem: listHostedWidgetLoader.item || listSnItemLoader.item || listRow
               readonly property bool isThisDragged: drawerGridRoot.isDragActive && drawerGridRoot.draggingIndex === index
               readonly property bool matches: !drawerGridRoot.searchQuery ||
                 wId.toLowerCase().indexOf(drawerGridRoot.searchQuery.toLowerCase()) !== -1 ||
@@ -442,6 +446,7 @@ Item {
                 spacing: 8
 
                 Loader {
+                  id: listHostedWidgetLoader
                   active: listRow.modelData && listRow.modelData.isWidget
                   anchors.verticalCenter: parent.verticalCenter
                   sourceComponent: Component {
@@ -454,6 +459,7 @@ Item {
                 }
 
                 Loader {
+                  id: listSnItemLoader
                   active: listRow.modelData && listRow.modelData.isSni
                   anchors.verticalCenter: parent.verticalCenter
                   sourceComponent: Component {
@@ -495,32 +501,54 @@ Item {
                 }
               }
 
-              // Drag area on row for convenient reordering in list view
+              // Drag area on row for reordering in list view or dragging out to the bar
               MouseArea {
                 id: rowDragArea
                 anchors.fill: parent
                 hoverEnabled: true
                 acceptedButtons: Qt.LeftButton
-                cursorShape: Qt.SizeVerCursor
+                cursorShape: Qt.OpenHandCursor
                 z: -1
 
+                property real pressX: 0
                 property real pressY: 0
                 property bool isRowDragging: false
 
                 onPressed: function(mouse) {
+                  pressX = mouse.x
                   pressY = mouse.y
                   isRowDragging = false
                 }
 
                 onPositionChanged: function(mouse) {
                   if (!pressed) return
+                  var del = listRow.dragTargetItem
+                  var localPt = del ? del.mapFromItem(rowDragArea, mouse.x, mouse.y) : { x: mouse.x, y: mouse.y }
+                  var isWidget = !!(listRow.modelData && listRow.modelData.isWidget)
                   if (!isRowDragging) {
-                    if (Math.abs(mouse.y - pressY) > 4) {
+                    if (Math.abs(mouse.x - pressX) + Math.abs(mouse.y - pressY) > 4) {
                       isRowDragging = true
-                      var p = drawerGridRoot.mapFromItem(listRow, mouse.x, mouse.y)
+                      if (typeof root !== "undefined" && root) {
+                        if (isWidget && typeof root.startHostedDrag === "function") {
+                          root.startHostedDrag(del, localPt)
+                          return
+                        } else if (!isWidget && typeof root.startIconDrag === "function") {
+                          root.startIconDrag(del, localPt)
+                          return
+                        }
+                      }
                       drawerGridRoot.startDrag(listRow.index, listRow, mouse)
                     }
                   } else {
+                    if (typeof root !== "undefined" && root) {
+                      if (isWidget && typeof root.updateHostedDrag === "function") {
+                        root.updateHostedDrag(del, localPt)
+                        return
+                      } else if (!isWidget && typeof root.updateIconDrag === "function") {
+                        root.updateIconDrag(del, localPt)
+                        return
+                      }
+                    }
                     var p2 = drawerGridRoot.mapFromItem(listRow, mouse.x, mouse.y)
                     drawerGridRoot.updateDrag(p2.x, p2.y)
                   }
@@ -529,7 +557,37 @@ Item {
                 onReleased: function(mouse) {
                   if (isRowDragging) {
                     isRowDragging = false
+                    var del = listRow.dragTargetItem
+                    var localPt = del ? del.mapFromItem(rowDragArea, mouse.x, mouse.y) : { x: mouse.x, y: mouse.y }
+                    var isWidget = !!(listRow.modelData && listRow.modelData.isWidget)
+                    if (typeof root !== "undefined" && root) {
+                      if (isWidget && typeof root.endHostedDrag === "function") {
+                        root.endHostedDrag(del)
+                        return
+                      } else if (!isWidget && typeof root.endIconDrag === "function") {
+                        root.endIconDrag(del, localPt)
+                        return
+                      }
+                    }
                     drawerGridRoot.endDrag()
+                  }
+                }
+
+                onCanceled: {
+                  if (isRowDragging) {
+                    isRowDragging = false
+                    var del = listRow.dragTargetItem
+                    var isWidget = !!(listRow.modelData && listRow.modelData.isWidget)
+                    if (typeof root !== "undefined" && root) {
+                      if (isWidget && typeof root.endHostedDrag === "function") {
+                        root.endHostedDrag(del)
+                        return
+                      } else if (!isWidget && typeof root.endIconDrag === "function") {
+                        root.endIconDrag(del, null)
+                        return
+                      }
+                    }
+                    drawerGridRoot.cancelDrag()
                   }
                 }
               }

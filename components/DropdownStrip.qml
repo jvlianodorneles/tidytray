@@ -186,9 +186,9 @@ Item {
     contentWidth: dropdownStripRoot.vertical ? width : Math.max(width, dropdownStripRoot.fullContentWidth)
     contentHeight: dropdownStripRoot.vertical ? Math.max(height, dropdownStripRoot.fullContentHeight) : height
 
-    interactive: dropdownStripRoot.vertical
+    interactive: !dropdownStripRoot.isDragActive && (dropdownStripRoot.vertical
       ? (contentHeight > height)
-      : (contentWidth > width)
+      : (contentWidth > width))
 
     WheelHandler {
       id: wheelHandler
